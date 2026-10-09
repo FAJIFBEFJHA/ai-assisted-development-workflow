@@ -404,7 +404,7 @@ Force-push policy:
 
 The product repository is the authoritative source for product code and product documentation.
 
-The workflow repository is the authoritative source for maintainer/AI workflow files after migration is complete.
+The workflow repository is the authoritative source for maintainer/AI workflow files.
 
 ## Documentation policy
 
@@ -500,35 +500,32 @@ Point out discrepancies rather than guessing.
 
 ## Migration status
 
-The workflow split is currently **IN PROGRESS**.
+The workflow split is **COMPLETE**.
 
-The project-specific workflow documents and both workflow scripts have been copied, adapted, and locally verified in `ai-assisted-development-workflow`.
-
-Verified script interfaces:
+Verified state:
 
 ```text
+workflow repository
+    -> pushed and independently retrievable
+    -> authoritative for maintainer/AI workflow and continuity
+
 New-SessionReview.ps1
     -> receives -ProductRepository
     -> reviews both repositories
     -> runs the product test suite
     -> writes a portable external report
+    -> verified after removal of the old product-side workflow files
 
 Sync-ProjectContext.ps1
     -> receives -ProductRepository
     -> assembles seven continuity files from both repositories
     -> verifies every copy with SHA256
+    -> verified against the real continuity mirror
+
+product repository
+    -> old workflow/context documents removed
+    -> old workflow scripts removed
+    -> migration commit 398aa417fb4d26fdfe76232f518a2383fff4f34b
 ```
 
-The workflow repository is not yet the sole continuity source because its initial commit/push and the real continuity-mirror verification are still pending.
-
-Until those checks pass:
-
-```text
-workflow-repository files
-    -> current migration working state
-
-existing workflow/context files in osu-hitsound-editor
-    -> rollback/fallback copy
-```
-
-Do not delete the product-repository fallback until the migration is explicitly completed.
+There is no product-repository workflow fallback anymore. Maintainer/AI workflow changes belong in this workflow repository.

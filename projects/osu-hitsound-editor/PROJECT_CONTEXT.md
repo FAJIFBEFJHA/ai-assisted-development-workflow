@@ -27,7 +27,7 @@ Branch:
     main
 
 Commit:
-    f919e8ed4742e456903e39d8ecfc236f33c53d95
+    398aa417fb4d26fdfe76232f518a2383fff4f34b
 
 Verified repository state:
     clean
@@ -503,17 +503,21 @@ Latest verification:
 
 ```text
 Product HEAD:
-    f919e8ed4742e456903e39d8ecfc236f33c53d95
+    398aa417fb4d26fdfe76232f518a2383fff4f34b
 
 Product tests:
     202/202 passing
 
 Product repository:
     clean
+    up to date with origin/main
 
 Workflow repository:
-    detected as having uncommitted migration files
+    initial workflow commit cb0b666a97082f9cee496f3721c167bdd990ca12
+    pushed and independently retrievable
 ```
+
+The workflow-repository `New-SessionReview.ps1` successfully reviewed the product after the old product-side workflow files were removed from the working tree. The product baseline remained 202/202 passing.
 
 `Sync-ProjectContext.ps1` has also been adapted and locally verified. It now assembles the continuity mirror from both repositories:
 
@@ -534,32 +538,35 @@ A temporary mirror test copied all seven files successfully, and every source/de
 
 ## Workflow migration status
 
-The workflow split is currently **IN PROGRESS**.
+The workflow split is **COMPLETE**.
 
-Completed locally:
-
-```text
-PROJECT_PROFILE.md copied and adapted
-PROJECT_CONTEXT.md adapted
-WORKFLOW.md adapted
-AI_WORKFLOW.md adapted
-New-SessionReview.ps1 adapted and verified
-Sync-ProjectContext.ps1 adapted and verified with SHA256 checks
-```
-
-Still required before migration is complete:
+Verified migration checkpoint:
 
 ```text
-create the initial workflow repository commit
-push workflow repository main
-verify the pushed workflow source is accessible for continuity
-synchronize and verify the real continuity mirror
-only then remove the old workflow/context copies from osu-hitsound-editor
+workflow repository initial commit:
+    cb0b666a97082f9cee496f3721c167bdd990ca12
+    pushed and independently retrievable
+
+product migration commit:
+    398aa417fb4d26fdfe76232f518a2383fff4f34b
+    pushed to main
+
+product repository:
+    old workflow/context documents removed
+    old workflow scripts removed
+    clean and up to date with origin/main
+
+session review:
+    runs from the separate workflow repository
+    reviews both repositories
+    product tests 202/202 passing
+
+continuity mirror:
+    seven-file synchronization from both repositories verified
+    SHA256 verification passed
 ```
 
-The workflow-repository copies are the current migration working state. The old product-repository workflow/context files must remain available as a rollback/fallback until the new repository and live mirror have been verified.
-
-Do not delete the original workflow/context files from `osu-hitsound-editor` yet.
+The workflow repository is now authoritative for maintainer/AI workflow and continuity files. The product repository remains authoritative for source code, tests, product architecture, decisions, roadmap, and public/contributor documentation.
 
 ## Important / technical debt
 
@@ -576,26 +583,15 @@ Do not mix these into the next audio step unless they become blockers:
 
 ## Exact next workflow task
 
-Create the initial `ai-assisted-development-workflow` repository commit, push `main`, and verify that the pushed workflow source is accessible independently from GitHub.
+No migration task remains.
 
-After the push:
-
-```text
-verify the remote commit exists
-verify the project-specific workflow files can be retrieved independently
-synchronize and verify the real continuity mirror
-only then prepare removal of the old product-repository workflow/context files
-```
-
-Migration is complete only after:
+After this workflow checkpoint is committed and pushed, refresh the continuity mirror once so it records the completed migration state and product checkpoint:
 
 ```text
-the new workflow source can restore the complete development context
-the session-review tool can review osu-hitsound-editor from the separate workflow repository
-the continuity mirror can be synchronized from both authoritative repositories
-the pushed workflow repository can be retrieved independently
-the original product workflow files can be removed without losing required context
+398aa417fb4d26fdfe76232f518a2383fff4f34b
 ```
+
+After that, workflow maintenance returns to the normal session/checkpoint process.
 
 ## Exact next product task
 

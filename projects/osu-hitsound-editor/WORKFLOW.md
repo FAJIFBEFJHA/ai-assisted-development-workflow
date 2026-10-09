@@ -80,22 +80,6 @@ Do not duplicate product `ROADMAP.md`, `DECISIONS.md`, or `architecture.md` into
 
 ---
 
-## Migration note
-
-The workflow split is currently being introduced.
-
-Until the migration is explicitly completed:
-
-```text
-the existing workflow/context files inside osu-hitsound-editor
-remain the authoritative fallback
-```
-
-Commands below that use the workflow-repository scripts become the normal workflow only after those scripts have been adapted and verified from their new location.
-
-Do not remove the original product-repository workflow files before that verification passes.
-
----
 
 ## Start of a session
 
@@ -728,7 +712,7 @@ Generic setup form:
 
 Open a new PowerShell session after changing a user-level environment variable.
 
-### Target script interface after migration
+### Project-specific script interface
 
 The project-specific scripts live at:
 
@@ -762,7 +746,7 @@ Do not hard-code `$productRepo` or `$workflowRepo` into tracked files.
 
 Do not use a large interactive terminal `git diff` as the normal closing-review workflow.
 
-After the workflow scripts have been migrated and verified, run:
+Run:
 
 ```powershell
 & "$workflowRepo\projects\osu-hitsound-editor\scripts\New-SessionReview.ps1" `
@@ -879,7 +863,7 @@ Do not synchronize the mirror before the authoritative repositories are in the i
 
 Google Drive is an optional read-only continuity mirror for AI access, not the source of truth.
 
-After migration, the mirror should be assembled from the authoritative locations instead of requiring all source files to exist in one repository.
+The mirror is assembled from the authoritative locations instead of requiring all source files to exist in one repository.
 
 Expected sources:
 

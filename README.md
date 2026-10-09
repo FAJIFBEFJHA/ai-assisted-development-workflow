@@ -308,4 +308,4 @@ optional continuity-mirror synchronization
 multi-device Git workflow
 ```
 
-The project-specific migration remains in progress until the new workflow repository is committed, pushed, remotely verified, and proven to replace the old workflow copies safely.
+The `osu-hitsound-editor` workflow migration is complete: the workflow repository is pushed and independently retrievable, the project-specific scripts operate from their new location, the continuity mirror has been verified, and the old workflow copies have been removed from the product repository.

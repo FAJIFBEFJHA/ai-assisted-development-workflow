@@ -21,20 +21,6 @@ Read `PROJECT_PROFILE.md` before applying this file.
 
 ---
 
-## Migration note
-
-The workflow split is currently being introduced.
-
-Until the migration is explicitly completed:
-
-```text
-the existing workflow/context files inside osu-hitsound-editor
-remain the authoritative fallback
-```
-
-Do not remove or stop using the original continuity source until the workflow-repository replacement has been verified.
-
----
 
 ## Required reading order
 
@@ -530,7 +516,7 @@ If a supposedly trivial edit touches executable logic, tests, configuration sema
 
 ## Session review tooling
 
-After migration, the project-specific review script lives in the workflow repository:
+The project-specific review script lives in the workflow repository:
 
 ```text
 projects/osu-hitsound-editor/scripts/New-SessionReview.ps1
@@ -804,7 +790,7 @@ Google Drive is an optional read-only mirror for AI continuity.
 
 It is not the source of truth.
 
-After migration, the mirror is assembled from authoritative sources in both repositories.
+The mirror is assembled from authoritative sources in both repositories.
 
 Expected workflow-repository sources:
 
@@ -896,7 +882,7 @@ When the user starts or resumes a development session:
 When the user says they are stopping, pausing, going to sleep, or ending the session:
 
 1. State the current product stage and exact verified test/verification checkpoint.
-2. Run/request the migrated `New-SessionReview.ps1` once it is verified.
+2. Run/request the project-specific `New-SessionReview.ps1` from the workflow repository.
 3. Review the uploaded session-review report.
 4. Summarize only functionality completed in this session.
 5. Identify which product documentation changed responsibility-wise.
@@ -914,9 +900,6 @@ When the user says they are stopping, pausing, going to sleep, or ending the ses
 13. Synchronize the optional continuity mirror only after authoritative repositories are pushed.
 14. Do not start a new feature during closing.
 
-Until script migration is complete, use the existing verified product-repository closing process as the authoritative fallback.
-
----
 
 ## Current checkpoint
 
@@ -935,7 +918,7 @@ for:
 current stage
 current passing test/verification checkpoint
 last completed functionality
-exact next workflow task while migration is active
+exact next workflow task, when applicable
 exact next product task
 Product checkpoint commit
 ```
