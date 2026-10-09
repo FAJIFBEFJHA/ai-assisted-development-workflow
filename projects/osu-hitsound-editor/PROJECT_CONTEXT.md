@@ -583,15 +583,9 @@ Do not mix these into the next audio step unless they become blockers:
 
 ## Exact next workflow task
 
-No migration task remains.
+The repository split is complete. The workflow now specifies proportional verification, a failure/escalation boundary for administrative tasks, chat handoff without session closure, and opt-in external skill guidance. Resume ordinary development after this workflow-documentation checkpoint is committed.
 
-After this workflow checkpoint is committed and pushed, refresh the continuity mirror once so it records the completed migration state and product checkpoint:
-
-```text
-398aa417fb4d26fdfe76232f518a2383fff4f34b
-```
-
-After that, workflow maintenance returns to the normal session/checkpoint process.
+If mirrored source files changed, refresh the continuity mirror once after the workflow commit is pushed. The product checkpoint remains `398aa417fb4d26fdfe76232f518a2383fff4f34b` unless the product repository changes.
 
 ## Exact next product task
 

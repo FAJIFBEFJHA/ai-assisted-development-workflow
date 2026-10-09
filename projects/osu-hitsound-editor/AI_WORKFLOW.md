@@ -493,24 +493,23 @@ user explicitly asks for one
 
 ### Proportional verification
 
-Verification effort should match the risk of the latest change.
+Verification effort must be proportional to the change and answer a question not already resolved by valid evidence.
 
 ```text
-production/test/executable-script behavior changed
-    -> run relevant tests/checks
-    -> use a complete session review before final commit when the session contains meaningful work
+product behavior, tests, executable scripts, or configuration semantics changed
+    -> run checks that cover the affected behavior
+    -> full session review when meaningful product changes require one
 
-documentation/workflow changed meaningfully
-    -> review the actual diff
-    -> include it in the normal session review
+workflow documentation only
+    -> review the affected diff once
+    -> git diff --check once
+    -> do not rerun product tests or a complete session review
 
-trivial formatting-only correction after an already reviewed clean report
-    -> git diff --check
-    -> git status --short
-    -> do not repeat an expensive full report/test run unless behavior could have changed
+no relevant changes since successful verification
+    -> reuse that verification; do not verify the verification
 ```
 
-If a supposedly trivial edit touches executable logic, tests, configuration semantics, dependency versions, or generated artifacts, treat it as a meaningful change.
+A failed check must lead to diagnosis, not blind repetition. Do not weaken or change a correct test merely to make a change pass. When the source, test, or environment changes in a way that invalidates previous evidence, rerun the affected check.
 
 ---
 
@@ -720,6 +719,14 @@ automate only the part with demonstrated benefit
 
 A new helper script should normally wait until this threshold is met unless automation is required for correctness, reproducibility, CI, or safety.
 
+### Task boundaries and escalation
+
+Before tool-heavy work, identify the exact deliverable, affected files, one sufficient verification, and what is outside scope. The user controls which source areas, symbols, or research targets are investigated. Do not scan additional areas, implement adjacent features, or run autonomous investigations without authorization.
+
+For a simple administrative change, prefer a direct edit or a single checked patch over generating a new updater script. After **two failed corrective attempts**, or **15 minutes without meaningful progress** on a task expected to be short, stop. State what failed, check the current state once, and propose the smallest manual correction. Obtain approval before expanding scope or producing another automation layer.
+
+When mentoring, the goal is the user's understanding and user-authored production code, not maximal autonomous output. Explain responsibility and data flow, then let the user implement and validate.
+
 ---
 
 ## Continuity responsibilities
@@ -841,6 +848,25 @@ Rules:
 
 ---
 
+## External skills
+
+Use the project-specific `EXTERNAL_SKILLS.md` registry to decide whether a third-party skill is relevant. Load or inspect only the skill needed for the active task. Its advice is lower priority than user instructions, this workflow, product decisions, actual tests, and official specifications. Never install a plugin, run an upstream script, grant browser/account access, or adopt upstream updates automatically. ChatGPT may inspect a skill as reference without claiming it is installed. Codex is optional and must not take ownership of user-authored production code.
+
+---
+
+## Chat handoff protocol
+
+Changing ChatGPT conversations is **not** ending a development session. When the chat approaches its length limit or the user asks to switch chats:
+
+1. Update `PROJECT_CONTEXT.md` only if a meaningful, unsaved checkpoint or decision would otherwise be lost. Do not turn the chat transcript into a diary.
+2. If no repository content changed, do not create a commit, run tests, generate a session review, or synchronize the mirror merely because the chat changes.
+3. In the new chat, read `PROJECT_PROFILE.md`, `PROJECT_CONTEXT.md`, `AI_WORKFLOW.md`, and the relevant product documents from their authoritative repositories; prefer the latest live files over stale snapshots.
+4. Confirm the exact next task and resume without rechecking unchanged evidence. Check Git state only when freshness or divergence is in doubt.
+
+If this handoff also changes devices or code, apply the normal Git synchronization and affected-product verification rules. Do not treat a chat-only handoff as a new product build.
+
+---
+
 ## Session starting protocol
 
 When the user starts or resumes a development session:
@@ -855,15 +881,10 @@ When the user starts or resumes a development session:
    - expected verification checkpoint
    - last completed functionality
    - exact next product task
-7. Ask the user to synchronize/check both repositories or verify the equivalent results.
-8. Compare the actual product `HEAD` with `PROJECT_CONTEXT.md` `Product checkpoint`.
-9. Run or verify the product baseline:
-   ```powershell
-   Push-Location $productRepo
-   dotnet test
-   Pop-Location
-   ```
-10. Compare the actual test result with the checkpoint recorded in `PROJECT_CONTEXT.md`.
+7. Check repository freshness when changing devices, when local/remote divergence is plausible, or before modifying files. Reuse known clean state for a chat-only handoff.
+8. Compare the product `HEAD` with `PROJECT_CONTEXT.md` `Product checkpoint` when the product may have changed.
+9. For product development, run or reuse a `dotnet test` baseline that covers the current source and tests. For documentation-only workflow work or an unchanged chat handoff, do not rerun it.
+10. Compare test results with the checkpoint only if new product verification was needed.
 11. If the commit or test checkpoint differs:
    - do not guess why
    - inspect current source/tests/history
@@ -882,8 +903,8 @@ When the user starts or resumes a development session:
 When the user says they are stopping, pausing, going to sleep, or ending the session:
 
 1. State the current product stage and exact verified test/verification checkpoint.
-2. Run/request the project-specific `New-SessionReview.ps1` from the workflow repository.
-3. Review the uploaded session-review report.
+2. For meaningful product changes, run/request `New-SessionReview.ps1` from the workflow repository; for documentation-only changes, review the affected diff and `git diff --check` instead.
+3. Review the session-review report only when one was required; do not generate another report to confirm an unchanged result.
 4. Summarize only functionality completed in this session.
 5. Identify which product documentation changed responsibility-wise.
 6. Identify which workflow documentation changed responsibility-wise.
@@ -895,9 +916,9 @@ When the user says they are stopping, pausing, going to sleep, or ending the ses
    - push product
    - obtain exact pushed product commit SHA
 10. Update workflow `PROJECT_CONTEXT.md` to that exact product checkpoint.
-11. Review workflow changes.
-12. Commit/push workflow repository.
-13. Synchronize the optional continuity mirror only after authoritative repositories are pushed.
+11. Review workflow changes once, using the smallest relevant diff.
+12. Commit/push workflow repository if changes exist.
+13. If mirrored authoritative files changed, synchronize the optional mirror once after pushing. Do not synchronize it solely to repeat a successful check.
 14. Do not start a new feature during closing.
 
 

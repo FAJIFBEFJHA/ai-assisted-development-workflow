@@ -92,21 +92,30 @@ $productRepo = "<local path to osu-hitsound-editor>"
 $workflowRepo = "<local path to ai-assisted-development-workflow>"
 ```
 
-Synchronize both repositories:
+When switching devices or when remote updates are expected, check for local changes first:
+
+```powershell
+git -C $productRepo status --short
+git -C $workflowRepo status --short
+```
+
+Only if the affected repositories are in an expected state, pull the needed updates:
 
 ```powershell
 git -C $productRepo pull
 git -C $workflowRepo pull
 ```
 
-Check both working states:
+Do not pull over unexpected local modifications. For a chat-only handoff on an unchanged device, skip unnecessary synchronization.
+
+Check both working states when needed:
 
 ```powershell
 git -C $productRepo status
 git -C $workflowRepo status
 ```
 
-Run the product baseline:
+Before product development, run or reuse a passing baseline for the current source and test state:
 
 ```powershell
 Push-Location $productRepo
@@ -114,7 +123,7 @@ dotnet test
 Pop-Location
 ```
 
-Do not start new functional work if the existing test suite is unexpectedly failing.
+Skip product tests for workflow-only documentation changes or a chat-only handoff when nothing relevant changed. Do not start new functional work if a needed baseline is unexpectedly failing.
 
 Then read, in this order:
 
@@ -742,18 +751,26 @@ Do not hard-code `$productRepo` or `$workflowRepo` into tracked files.
 
 ---
 
+## Switching chats without ending the session
+
+Changing chats is a continuity handoff, not a Git checkpoint. Ensure `PROJECT_CONTEXT.md` contains the current unresolved task; update it only if required. In the new chat, ask the assistant to read `PROJECT_PROFILE.md`, `PROJECT_CONTEXT.md`, and `AI_WORKFLOW.md` from `ai-assisted-development-workflow`, then resume the exact task. An unchanged chat handoff needs no tests, reports, commits, or mirror refresh. See `AI_WORKFLOW.md` for the complete protocol.
+
+---
+
 ## Before ending a session
 
 Do not use a large interactive terminal `git diff` as the normal closing-review workflow.
 
-Run:
+For meaningful product changes, run:
 
 ```powershell
 & "$workflowRepo\projects\osu-hitsound-editor\scripts\New-SessionReview.ps1" `
     -ProductRepository $productRepo
 ```
 
-The session review should gather enough information to review the complete development checkpoint without manually navigating large terminal diffs.
+For workflow-documentation-only changes, inspect the affected diff and run `git diff --check` once instead. Reuse prior product test evidence when source and tests have not changed. A full session review is unnecessary for that case.
+
+When used, the session review should gather enough information to review the complete development checkpoint without manually navigating large terminal diffs.
 
 At minimum it should report:
 
