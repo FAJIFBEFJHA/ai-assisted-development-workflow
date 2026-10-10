@@ -358,7 +358,7 @@ Rules:
 - Keep the normal automated suite hardware-independent when possible.
 - Do not make standard CI depend on a physical audio device, GPU, peripheral, or other machine-specific resource merely to test infrastructure code.
 - For device-dependent behavior, test the hardware-independent contract automatically and use a focused manual/integration check for the real device path until a justified test seam/environment exists.
-- If focused verification is implemented as a temporary device-dependent test, remove it after verification and rerun the permanent automated suite.
+- If focused verification uses a temporary device-dependent test, remove it after the focused check. Reuse the latest valid permanent-suite result when production code and permanent tests are unchanged; rerun affected checks only when earlier evidence has been invalidated.
 
 Use these evidence categories deliberately:
 
@@ -496,9 +496,16 @@ user explicitly asks for one
 Verification effort must be proportional to the change and answer a question not already resolved by valid evidence.
 
 ```text
-product behavior, tests, executable scripts, or configuration semantics changed
+product behavior or permanent tests changed
     -> run checks that cover the affected behavior
-    -> full session review when meaningful product changes require one
+    -> run the full product suite when a meaningful regression checkpoint is needed
+
+temporary hardware-dependent test removed after successful focused verification
+    -> reuse the latest passing permanent-suite result if production and permanent tests are unchanged
+    -> rerun affected checks when source, test discovery, configuration, or environment invalidates prior evidence
+
+executable scripts or configuration semantics changed
+    -> verify the affected behavior
 
 workflow documentation only
     -> review the affected diff once
@@ -510,6 +517,8 @@ no relevant changes since successful verification
 ```
 
 A failed check must lead to diagnosis, not blind repetition. Do not weaken or change a correct test merely to make a change pass. When the source, test, or environment changes in a way that invalidates previous evidence, rerun the affected check.
+
+When a meaningful product session review is required, `New-SessionReview.ps1` intentionally runs the full product suite once for that checkpoint. This is not a reason to rerun tests after every small edit or to rerun the review after documentation-only corrections.
 
 ---
 
@@ -553,7 +562,7 @@ identify required continuity/documentation changes
 do not make the user manually copy equivalent terminal output
 ```
 
-If a final complete review is required after documentation changes, run the script again.
+Do not run the script again after documentation-only or formatting-only corrections unless the previous review has been invalidated by substantive changes.
 
 ---
 
@@ -584,8 +593,9 @@ WORKFLOW REPOSITORY
 On the receiving device:
 
 ```text
-pull both repositories
-check both statuses
+check both repository statuses for local changes
+if local states are expected, pull both repositories
+check both statuses after pulling
 run product baseline verification
 compare PROJECT_CONTEXT Product checkpoint with product HEAD
 continue
@@ -915,7 +925,7 @@ When the user says they are stopping, pausing, going to sleep, or ending the ses
    - commit product
    - push product
    - obtain exact pushed product commit SHA
-10. Update workflow `PROJECT_CONTEXT.md` to that exact product checkpoint.
+10. Update workflow `PROJECT_CONTEXT.md` only if meaningful resumable checkpoint information changed. When the product commit changed, record its exact pushed SHA; for workflow-only changes, keep the existing product SHA.
 11. Review workflow changes once, using the smallest relevant diff.
 12. Commit/push workflow repository if changes exist.
 13. If mirrored authoritative files changed, synchronize the optional mirror once after pushing. Do not synchronize it solely to repeat a successful check.

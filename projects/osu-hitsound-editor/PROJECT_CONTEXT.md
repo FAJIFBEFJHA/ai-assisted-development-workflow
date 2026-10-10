@@ -27,7 +27,7 @@ Branch:
     main
 
 Commit:
-    398aa417fb4d26fdfe76232f518a2383fff4f34b
+    2530b2d78f457f6ec88c1eab0d185ad7ef9fb9b7
 
 Verified repository state:
     clean
@@ -503,7 +503,7 @@ Latest verification:
 
 ```text
 Product HEAD:
-    398aa417fb4d26fdfe76232f518a2383fff4f34b
+    2530b2d78f457f6ec88c1eab0d185ad7ef9fb9b7
 
 Product tests:
     202/202 passing
@@ -548,7 +548,7 @@ workflow repository initial commit:
     pushed and independently retrievable
 
 product migration commit:
-    398aa417fb4d26fdfe76232f518a2383fff4f34b
+    2530b2d78f457f6ec88c1eab0d185ad7ef9fb9b7
     pushed to main
 
 product repository:
@@ -585,7 +585,7 @@ Do not mix these into the next audio step unless they become blockers:
 
 The repository split is complete. The workflow now specifies proportional verification, a failure/escalation boundary for administrative tasks, chat handoff without session closure, and opt-in external skill guidance. Resume ordinary development after this workflow-documentation checkpoint is committed.
 
-If mirrored source files changed, refresh the continuity mirror once after the workflow commit is pushed. The product checkpoint remains `398aa417fb4d26fdfe76232f518a2383fff4f34b` unless the product repository changes.
+If mirrored source files changed, refresh the continuity mirror once after the workflow commit is pushed. The product checkpoint remains `2530b2d78f457f6ec88c1eab0d185ad7ef9fb9b7` unless the product repository changes.
 
 ## Exact next product task
 

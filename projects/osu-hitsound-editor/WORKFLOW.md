@@ -397,7 +397,7 @@ After implementing behavior:
 
 1. Add tests for the normal case.
 2. Add relevant boundary/error cases.
-3. Run the product test suite:
+3. Run tests covering the affected behavior. Run the full product suite when establishing a meaningful regression checkpoint:
 
 ```powershell
 Set-Location $productRepo
@@ -425,7 +425,10 @@ If a real-device verification is written as a temporary integration test:
 ```text
 verify the behavior
 remove the temporary test
-rerun the permanent automated suite
+if production and permanent tests remain unchanged
+    -> reuse the latest valid passing permanent-suite result
+otherwise, or if prior verification was invalidated
+    -> rerun the affected checks
 ```
 
 Use the evidence type deliberately:
@@ -596,9 +599,9 @@ regenerate/reconcile the patch
 Do not repeat expensive verification mechanically when the latest change cannot affect behavior.
 
 ```text
-production / tests / executable script logic changed
-    -> run relevant verification
-    -> run dotnet test when product behavior may be affected
+production / permanent tests / executable script logic changed
+    -> run checks covering the affected behavior
+    -> run the full product suite for a meaningful regression checkpoint
 
 meaningful product documentation change
     -> inspect the product-repository diff
@@ -617,6 +620,8 @@ formatting-only correction after an already reviewed report
 ```
 
 If a change touches executable semantics, dependency versions, generated artifacts, or configuration behavior, it is not formatting-only.
+
+Removing an already-verified temporary hardware test does not require repeating a successful permanent-suite run unless the change affects test discovery/build or otherwise invalidates prior evidence. Diagnose failed checks and expand verification only where needed.
 
 ---
 
@@ -645,8 +650,9 @@ WORKFLOW REPOSITORY
 On the receiving device:
 
 ```text
-git pull both repositories
-check status of both repositories
+check status of both repositories for local modifications
+only if local states are expected, git pull both repositories
+check status of both repositories after pulling
 run product baseline verification
 compare PROJECT_CONTEXT product checkpoint with current product HEAD
 continue
@@ -770,6 +776,8 @@ For meaningful product changes, run:
 
 For workflow-documentation-only changes, inspect the affected diff and run `git diff --check` once instead. Reuse prior product test evidence when source and tests have not changed. A full session review is unnecessary for that case.
 
+When needed for meaningful product changes, `New-SessionReview.ps1` deliberately runs the full product suite once as part of closing the checkpoint. Do not rerun the script solely after documentation-only or formatting-only corrections.
+
 When used, the session review should gather enough information to review the complete development checkpoint without manually navigating large terminal diffs.
 
 At minimum it should report:
@@ -839,7 +847,7 @@ WORKFLOW.md / AI_WORKFLOW.md
 
 `PROJECT_CONTEXT.md` is a checkpoint, not a diary.
 
-Keep it current and focused on information needed to resume development.
+Keep it current and focused on information needed to resume development. Update it only when meaningful checkpoint information changes; do not rewrite an unchanged product SHA or checkpoint during workflow-only edits.
 
 ### Commit order
 

@@ -271,6 +271,7 @@ Tests are the primary verification mechanism.
 ```text
 Unit/regression tests:
     Required for deterministic project behavior when practical.
+    Run affected tests during incremental work and the full product suite for meaningful regression checkpoints.
 
 Integration tests:
     Used when multiple real components must be verified together.
@@ -290,7 +291,8 @@ If a temporary hardware-dependent test is used only for focused verification:
 ```text
 verify the behavior
 remove the temporary test
-run the permanent suite again
+reuse the latest valid passing permanent-suite result if production and permanent tests are unchanged
+rerun affected checks if prior verification was invalidated
 ```
 
 Never change a correct test merely to make an incorrect implementation pass.
@@ -394,8 +396,9 @@ Multi-device workflow:
     commit
     push
     switch device
-    git pull
     git status
+    git pull only if the local state is expected
+    git status after pulling
     run baseline verification
 
 Force-push policy:
