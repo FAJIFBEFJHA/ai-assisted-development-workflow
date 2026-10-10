@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
 
 ## Project
 
@@ -43,34 +43,27 @@ Both repositories are public.
 Current test status:
 
 ```text
-202/202 passing
+210/210 passing (full suite; 2026-10-10 session review)
 ```
 
 Beatmap Parsing and Base Model, Hitsound Resolution, and the current Physical Sample Resolution boundary are complete.
 
 ## Current objective
 
-Continue production Audio Infrastructure from the now-working decoded-source/mixer lifecycle.
+Continue Audio Infrastructure by connecting a single logical hitsound layer to physical sample resolution and audio playback, without introducing a global scheduler or UI yet.
 
 The current production audio boundary can:
 
-- open supported physical audio files
-- decode WAV/MP3 through `AudioFileReader`
-- decode OGG through `VorbisWaveReader`
-- convert decoded audio to `ISampleProvider`
-- normalize mono to stereo
-- normalize multichannel audio to stereo by preserving input channels 0 and 1
-- resample to the active mixer/device sample rate
-- explicitly initialize a `WasapiPlayer` output device
-- create a persistent stereo float `MixingSampleProvider`
-- add decoded/normalized audio sources to the persistent mixer
-- keep each source `WaveStream` alive while its mixer input is active
-- release a source reader when `MixerInputEnded` fires
-- release remaining active source readers when the engine is disposed
-- keep output initialization out of the constructor
-- play, pause, and stop an initialized output device
+- decode WAV/MP3/OGG and normalize sources to the device mixer format
+- explicitly initialize and dispose a low-latency `WasapiPlayer` with a persistent stereo float mixer
+- play/pause and stop playback; `Stop()` resets a loaded timeline to the beginning
+- keep the main timeline `WaveStream` open and reposition it with `Seek(...)`
+- report timeline position from the seek base plus the rendered WASAPI output clock
+- play transient sources with individual 0-100 volume through `VolumeSampleProvider`
+- mix multiple sources simultaneously and release their readers at the proper lifetime boundary
+- release a partially initialized device if initialization throws, rethrowing the original exception
 
-The next production objective is to verify the new persistent timeline-audio lifetime on a real WASAPI device, then implement seek while preserving the established output-clock timeline model.
+Next, connect `HitSoundLayer` to `SampleResolver.ResolveSample(...)` and to `AudioPlaybackEngine.AddAudioSource(...)` for one physically resolved file, preserving volume and distinguishing missing/external fallback outcomes. Do not assume those outcomes contain playable paths.
 
 ## Current implementation checkpoint
 
@@ -257,6 +250,7 @@ Dictionary<ISampleProvider, WaveStream> activeReaders
 WaveStream? timelineReader
 ISampleProvider? timelineProvider
 object activeReadersLock
+double timelineBaseMilliseconds
 ```
 
 and contains:
@@ -267,8 +261,10 @@ GetInitializedOutputDevice() -> WasapiPlayer
 Play() -> void
 Pause() -> void
 Stop() -> void
+Seek(double timeMilliseconds) -> void
+GetTimelinePositionMilliseconds() -> double
 LoadTimelineAudio(string filePath) -> void
-AddAudioSource(string filePath) -> void
+AddAudioSource(string filePath, int volume = 100) -> void
 OnMixerInputEnded(object? sender, SampleProviderEventArgs e) -> void
 OpenAudioFile(string filePath) -> WaveStream
 NormalizeForMixer(WaveStream reader, int targetSampleRate) -> ISampleProvider
@@ -298,12 +294,14 @@ mixer
     -> persistent MixingSampleProvider
     -> ReadFully = true
 
-outputDevice.Init(mixer)
+device.Init(currentMixer)
+    -> only on success, assign outputDevice and mixer fields
+    -> on failure, unsubscribe mixer event, dispose device, rethrow
 ```
 
-Initialization is explicit rather than constructor-driven. Constructing `AudioPlaybackEngine` alone does not open a physical audio device, so decoding/normalization tests remain hardware-independent.
+Initialization is explicit rather than constructor-driven. Constructing `AudioPlaybackEngine` alone does not open a physical audio device, so decoding/normalization tests remain hardware-independent. The successful device path is integration-tested; forcing an internal initialization failure is not covered by the permanent suite.
 
-`GetInitializedOutputDevice()` centralizes the shared precondition used by `Play()`, `Pause()`, and `Stop()`:
+`GetInitializedOutputDevice()` centralizes the shared precondition used by `Play()`, `Pause()`, `Stop()`, `Seek(...)`, and `GetTimelinePositionMilliseconds()`:
 
 ```text
 outputDevice == null
@@ -354,21 +352,25 @@ return current ISampleProvider
 `AddAudioSource(...)`:
 
 ```text
+require volume in 0..100
+    -> ArgumentOutOfRangeException otherwise
+
 require initialized mixer
     -> InvalidOperationException otherwise
 
 OpenAudioFile(filePath)
     -> WaveStream
 
-NormalizeForMixer(
-    reader,
-    mixer.WaveFormat.SampleRate)
-    -> ISampleProvider
+NormalizeForMixer(reader, mixer.WaveFormat.SampleRate)
+    -> normalizedProvider
+
+VolumeSampleProvider(normalizedProvider)
+    -> volumeProvider.Volume = volume / 100f
 
 register:
-    provider -> reader
+    volumeProvider -> reader
 
-mixer.AddMixerInput(provider)
+mixer.AddMixerInput(volumeProvider)
 ```
 
 Source-reader ownership is explicit:
@@ -415,36 +417,17 @@ mixer.AddMixerInput(timelineProvider)
 
 Unlike temporary sources managed by `activeReaders`, the timeline `WaveStream` remains owned by `AudioPlaybackEngine` after its mixer input ends. `OnMixerInputEnded(...)` clears `timelineProvider` but deliberately keeps `timelineReader` alive so it can be repositioned and normalized again for a future seek. `Dispose()` releases the persistent timeline reader.
 
-For seek, do not reuse a previously consumed `WdlResamplingSampleProvider` after changing the decoder position; it retains internal resampler state. Reposition `timelineReader` and create a fresh normalized provider.
+`Seek(...)` validates a finite position within the timeline duration, stops/resets the output clock, clears mixer inputs and transient-reader ownership, repositions the persistent timeline reader, creates a fresh normalized provider, updates `timelineBaseMilliseconds`, and resumes only if playback had been active. Reusing a consumed resampler after seeking would retain stale state.
+
+`GetTimelinePositionMilliseconds()` converts `WasapiPlayer.GetPosition()` bytes with `OutputWaveFormat.AverageBytesPerSecond` and adds `timelineBaseMilliseconds`. Decoder `CurrentTime` is not the editor clock. `Stop()` now stops the device and invokes `Seek(0)` when a timeline source is loaded.
 
 ### Verification boundary
 
 Automated tests remain hardware-independent.
 
-Current permanent automated coverage includes the error contract for:
+Current permanent automated coverage includes the uninitialized-output contract for `Play()`, `Pause()`, `Stop()`, `Seek(...)`, `GetTimelinePositionMilliseconds()`, `AddAudioSource(...)`, and `LoadTimelineAudio(...)`. Volume range, sample amplitude scaling, and simultaneous mixing of two volume-adjusted sources are covered without a physical output device.
 
-```text
-Play()
-Pause()
-Stop()
-AddAudioSource(...)
-LoadTimelineAudio(...)
-```
-
-when output has not been initialized.
-
-The real decoded-source playback path was verified manually on a physical WASAPI device with temporary integration tests:
-
-```text
-source reaches end
-    -> MixerInputEnded
-    -> WaveStream released
-
-engine disposed while source is active
-    -> remaining WaveStream released
-```
-
-Those device-dependent tests were removed after verification and are not part of the ordinary automated suite.
+Focused real-device integration tests also verified transient-reader release, persistent timeline-reader lifetime, seeks during playback and from paused/stopped states, rendered-clock advancement across seek, stop/restart positioning, and successful output initialization. These temporary device-dependent tests were removed after verification; the internal `device.Init(...)` failure path was reviewed structurally, not forcibly triggered.
 
 ## Test progression
 
@@ -461,9 +444,14 @@ Recent checkpoints:
 200/200  Stop() uninitialized-output contract
 201/201  AddAudioSource() uninitialized-output contract
 202/202  LoadTimelineAudio() uninitialized-output contract
+203/203  Seek() uninitialized-output contract
+204/204  GetTimelinePositionMilliseconds() uninitialized-output contract
+206/206  invalid source volume boundaries
+209/209  volume amplitude scaling at 0, 50 and 100
+210/210  two concurrent volume-adjusted sources
 ```
 
-Treat the actual source and test suite as the implementation truth if this list becomes stale.
+The session review on 2026-10-10 verified the entire permanent suite: 210 passed, 0 failed, 0 skipped. Treat actual source and tests as the implementation truth if this list becomes stale.
 
 ## Workflow tooling
 
@@ -499,11 +487,11 @@ replaces local repository paths with portable placeholders
 preserves UTF-8 text correctly under Windows PowerShell 5.1
 ```
 
-Latest verification:
+Migration-era verification (historical):
 
 ```text
 Product HEAD:
-    2530b2d78f457f6ec88c1eab0d185ad7ef9fb9b7
+    398aa417fb4d26fdfe76232f518a2383fff4f34b
 
 Product tests:
     202/202 passing
@@ -548,7 +536,7 @@ workflow repository initial commit:
     pushed and independently retrievable
 
 product migration commit:
-    2530b2d78f457f6ec88c1eab0d185ad7ef9fb9b7
+    398aa417fb4d26fdfe76232f518a2383fff4f34b
     pushed to main
 
 product repository:
@@ -578,46 +566,30 @@ Do not mix these into the next audio step unless they become blockers:
 - use `CultureInfo.InvariantCulture` consistently when parser robustness work resumes
 - improve malformed/empty parser-field handling later
 - keep the lazer-specific spinner traversal sound deferred from the canonical legacy model
-- handle partial `InitializeOutput()` failure/cleanup deliberately when output-device error handling is implemented
+- evaluate runtime audio-device loss/recovery only when there is a concrete consumer; partial initialization cleanup is implemented but the forced-failure path remains untested
 - do not introduce global optimization before deterministic export/reload equivalence exists
 
 ## Exact next workflow task
 
-The repository split is complete. The workflow now specifies proportional verification, a failure/escalation boundary for administrative tasks, chat handoff without session closure, and opt-in external skill guidance. Resume ordinary development after this workflow-documentation checkpoint is committed.
-
-If mirrored source files changed, refresh the continuity mirror once after the workflow commit is pushed. The product checkpoint remains `2530b2d78f457f6ec88c1eab0d185ad7ef9fb9b7` unless the product repository changes.
+Resume the established two-repository workflow with proportional verification. Keep `PROJECT_CONTEXT.md` tied to the exact pushed product commit and synchronize the optional mirror only after authoritative repository changes are pushed. No unfinished workflow migration work remains.
 
 ## Exact next product task
 
-Verify the persistent timeline-audio lifetime with a focused real-device integration check before implementing seek.
-
-The verification must establish:
+Connect one `HitSoundLayer` to physical sample resolution and playback, preserving the existing responsibility boundaries:
 
 ```text
-LoadTimelineAudio(...)
-    -> real timeline audio plays through WASAPI
+logical HitSoundLayer
+    -> SampleResolver.ResolveSample(layer, beatmapDirectory)
+    -> SampleResolutionResult
 
-timeline source reaches end
-    -> timelineProvider is removed
-    -> timelineReader remains owned/open by AudioPlaybackEngine
+when ResolvedPath represents an existing beatmap/custom sample
+    -> AudioPlaybackEngine.AddAudioSource(ResolvedPath, layer.Volume)
 
-AudioPlaybackEngine.Dispose()
-    -> timelineReader is released
+missing custom sample or external fallback required
+    -> handle the outcome explicitly; do not invent a playable path
 ```
 
-After that verification passes, define and implement the smallest production `Seek(...)` responsibility.
-
-Preserve the established timeline rule:
-
-```text
-editor timeline position
-    = timeline base after the most recent seek
-    + rendered output position
-```
-
-Do not use decoder `CurrentTime` as the authoritative playback clock. A seek must reposition the persistent `timelineReader`, create a fresh normalized provider, reset/restart the rendered-device position as required, and update the timeline base.
-
-Do not start dynamic hitsound triggering, per-layer volume, or editor timeline/UI work as part of the seek step.
+Choose the smallest method responsibility and deterministic tests before implementing. Do not introduce event scheduling, editor UI, global coordination, or external-fallback asset management as part of this first single-layer connection.
 
 ## Source-of-truth order
 
