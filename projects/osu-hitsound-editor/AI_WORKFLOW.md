@@ -162,6 +162,32 @@ FLUJO:
     devolver el resultado
 ```
 
+Example showing intermediate values and where they go, when they are actually needed:
+
+```text
+UTILIZA:
+    EXISTENTE: Beatmap.GetHitSoundLayers(...) -> List<HitSoundLayer>
+    EXISTENTE: PlayHitSoundLayer(...) -> SampleResolutionResult
+    LOCAL NUEVA: List<HitSoundLayer> layers, declared in the method
+    LOCAL NUEVA: List<SampleResolutionResult> results, declared in the method
+    LOCAL NUEVA: HitSoundLayer layer, scoped to each iteration
+    LOCAL NUEVA: SampleResolutionResult result, scoped to each iteration
+
+FLUJO:
+    obtener layers:
+        beatmap.GetHitSoundLayers(hitObject)
+
+    crear results:
+        List<SampleResolutionResult>
+
+    para cada layer en layers
+        obtener result:
+            PlayHitSoundLayer(layer, beatmapDirectory, resolver, engine)
+        agregar result a results
+
+    devolver results
+```
+
 Rules:
 
 - Keep `FLUJO` concise and directly translatable to code.
@@ -172,6 +198,8 @@ Rules:
 - Do NOT expand `FLUJO` into a long numbered walkthrough unless the user asks.
 - Do NOT first ask the user to implement only the method signature.
 - Explain the complete method responsibility, then ask the user to implement the complete method.
+
+When there are no new local variables or fields, state that explicitly in `UTILIZA:` rather than leaving the user to infer it.
 
 When variables or fields materially affect implementation, make them explicit inside `UTILIZA:` using:
 
@@ -353,6 +381,8 @@ Tests are the main verification mechanism.
 Rules:
 
 - Complete test code may be provided.
+- When adding test cases to an existing test class, provide only the new test methods to paste into it; do not replace the entire class/file unless explicitly requested.
+- Reuse existing test fixtures and helpers when appropriate. Create a helper or new test class only when it serves a real testing responsibility.
 - When adding tests, state the expected test count when determinable.
 - Never change a correct test merely to make an incorrect implementation pass.
 - Keep the normal automated suite hardware-independent when possible.

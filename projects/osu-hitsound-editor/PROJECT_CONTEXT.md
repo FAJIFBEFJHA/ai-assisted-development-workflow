@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT
 
-Last updated: 2026-10-10
+Last updated: 2026-10-11
 
 ## Project
 
@@ -27,7 +27,7 @@ Branch:
     main
 
 Commit:
-    2530b2d78f457f6ec88c1eab0d185ad7ef9fb9b7
+    b7896a869647f3e2ac6ec9467a190aca0535a73c
 
 Verified repository state:
     clean
@@ -43,14 +43,14 @@ Both repositories are public.
 Current test status:
 
 ```text
-210/210 passing (full suite; 2026-10-10 session review)
+500/500 passing (full suite; 2026-10-11 session review)
 ```
 
 Beatmap Parsing and Base Model, Hitsound Resolution, and the current Physical Sample Resolution boundary are complete.
 
 ## Current objective
 
-Continue Audio Infrastructure by connecting a single logical hitsound layer to physical sample resolution and audio playback, without introducing a global scheduler or UI yet.
+Continue Audio Infrastructure by advancing discrete `TimedHitSoundEvent` values with a cursor across non-overlapping timeline intervals, before introducing real-time sample-accurate scheduling or UI.
 
 The current production audio boundary can:
 
@@ -62,8 +62,13 @@ The current production audio boundary can:
 - play transient sources with individual 0-100 volume through `VolumeSampleProvider`
 - mix multiple sources simultaneously and release their readers at the proper lifetime boundary
 - release a partially initialized device if initialization throws, rethrowing the original exception
+- resolve individual logical `HitSoundLayer` values to playable beatmap/custom files, handling missing/external fallback results without inventing a path
+- play hit circles, slider edges, and slider ticks through `HitSoundPlaybackService`
+- enumerate chronological discrete `TimedHitSoundEvent` values in `(startExclusiveMilliseconds, endInclusiveMilliseconds]`
+- dispatch one `TimedHitSoundEvent` to the appropriate immediate playback operation
+- advance/seek a `HitCirclePlaybackCursor` without duplicating hit-circle events
 
-Next, connect `HitSoundLayer` to `SampleResolver.ResolveSample(...)` and to `AudioPlaybackEngine.AddAudioSource(...)` for one physically resolved file, preserving volume and distinguishing missing/external fallback outcomes. Do not assume those outcomes contain playable paths.
+Next, extend cursor-based advancement to the unified event stream, preserving seek and interval boundaries. The existing immediate playback methods are not a real-time audio scheduler.
 
 ## Current implementation checkpoint
 
@@ -421,6 +426,14 @@ Unlike temporary sources managed by `activeReaders`, the timeline `WaveStream` r
 
 `GetTimelinePositionMilliseconds()` converts `WasapiPlayer.GetPosition()` bytes with `OutputWaveFormat.AverageBytesPerSecond` and adds `timelineBaseMilliseconds`. Decoder `CurrentTime` is not the editor clock. `Stop()` now stops the device and invokes `Seek(0)` when a timeline source is loaded.
 
+### Discrete event enumeration and immediate playback
+
+`Beatmap.GetTimedHitSoundEventsInRange(...)` combines hit circles, slider edge events, and slider tick events. Each event has `Time`, the original `HitObject`, `HitSoundEventType`, and an optional `EdgeIndex` for slider edges. Results are ordered chronologically; the lower time bound is exclusive and the upper bound is inclusive.
+
+`HitSoundPlaybackService` resolves each logical sound layer using `SampleResolver`, adds found audio to `AudioPlaybackEngine`, and returns `SampleResolutionResult` values. Its individual `PlayHitCircle(...)`, `PlaySliderEdge(...)`, and `PlaySliderTick(...)` methods preserve each sound type's separate rules. `PlayTimedHitSoundEvent(...)` selects one of these operations based on `EventType` and validates slider edge indices. This is immediate dispatch, not sample-accurate scheduling.
+
+`HitCirclePlaybackCursor.AdvanceTo(...)` and `SeekTo(...)` track which circles have been processed. They do not yet track the unified event stream. Slider body audio remains separate from discrete slider edge/tick events.
+
 ### Verification boundary
 
 Automated tests remain hardware-independent.
@@ -575,21 +588,9 @@ Resume the established two-repository workflow with proportional verification. K
 
 ## Exact next product task
 
-Connect one `HitSoundLayer` to physical sample resolution and playback, preserving the existing responsibility boundaries:
+Design and implement a cursor that advances the unified `TimedHitSoundEvent` stream through consecutive `(previousPosition, currentPosition]` intervals without repeating events, and can reset after seeking. Use `Beatmap.GetTimedHitSoundEventsInRange(...)` as the event source; retain `HitCirclePlaybackCursor` until a deliberate replacement is justified. Verify zero-time events, adjacent intervals, coincident events, backward movement, and seek boundaries with hardware-independent tests.
 
-```text
-logical HitSoundLayer
-    -> SampleResolver.ResolveSample(layer, beatmapDirectory)
-    -> SampleResolutionResult
-
-when ResolvedPath represents an existing beatmap/custom sample
-    -> AudioPlaybackEngine.AddAudioSource(ResolvedPath, layer.Volume)
-
-missing custom sample or external fallback required
-    -> handle the outcome explicitly; do not invent a playable path
-```
-
-Choose the smallest method responsibility and deterministic tests before implementing. Do not introduce event scheduling, editor UI, global coordination, or external-fallback asset management as part of this first single-layer connection.
+Do not begin a real-time/sample-accurate scheduler, connect UI, add continuous slider-body scheduling, or introduce global optimization in this step.
 
 ## Source-of-truth order
 
