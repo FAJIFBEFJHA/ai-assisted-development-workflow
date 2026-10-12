@@ -334,6 +334,18 @@ Do not introduce a predictable requirement from this review only after the autho
 
 ---
 
+## Modifying existing methods
+
+Use the **current method body** as the starting point, not a generic pseudocode replacement. If the method is not available or may have changed, obtain it first.
+
+Describe edits in existing-code order using `[CONSERVAR]`, `[AGREGAR]`, `[REEMPLAZAR]`, and `[ELIMINAR]`. For each addition or replacement, identify the exact location and concrete identifiers/types. Show the revised `FLUJO` only as needed to make the modifications directly implementable.
+
+Check validation before acquiring disposable resources, and review every affected `try/catch`, cleanup path, state transition, and call site. Do not overlook references to a replaced provider or object in dictionaries, mixer inputs, event handlers, or rollback logic.
+
+The author updates the production method. Keep unaffected code unchanged; provide complete exception expressions when appropriate and focused tests after reviewing the change. See `AI_WORKFLOW.md` for the detailed rule.
+
+---
+
 ## While implementing
 
 Keep track of data flow:
@@ -751,6 +763,18 @@ and:
 ```powershell
 & "$workflowRepo\projects\osu-hitsound-editor\scripts\Sync-ProjectContext.ps1" `
     -ProductRepository $productRepo
+```
+
+The review script belongs to the **workflow repository**, not the product repository.
+Its `-ProductRepository` parameter is required and must point to the local product clone.
+It can be invoked from any working directory after `$workflowRepo` and `$productRepo`
+have been set to their respective clone paths. Do not run
+`.\scripts\New-SessionReview.ps1` from the product repository.
+
+If the script is not found, check the workflow-clone path first:
+
+```powershell
+Test-Path -LiteralPath "$workflowRepo\projects\osu-hitsound-editor\scripts\New-SessionReview.ps1"
 ```
 
 Do not hard-code `$productRepo` or `$workflowRepo` into tracked files.

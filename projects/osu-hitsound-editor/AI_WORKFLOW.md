@@ -263,6 +263,27 @@ New requirements are acceptable when genuinely new evidence appears during imple
 
 ---
 
+## Modifying existing methods
+
+When editing an existing production method, use its **actual current implementation** as the baseline. Do not describe a generic rewrite if the user needs specific edits. If the current method is unavailable or uncertain, request it before proposing changes.
+
+Present the changes **in the order in which they appear in the current method**. Mark each affected part explicitly:
+
+```text
+[CONSERVAR] existing statement/block remains unchanged
+[AGREGAR] new statement/block, with its exact insertion point
+[REEMPLAZAR] exact existing statement/block -> replacement
+[ELIMINAR] exact statement/block to remove, with a reason
+```
+
+Use the exact existing identifiers. Clearly distinguish existing fields/local variables from new ones, and state each new variable's concrete type, scope, and purpose. Include a revised `FLUJO` anchored to the current method's real structure when the change is more than a trivial edit.
+
+Before asking the user to modify the method, check every affected path: validation order, normal operation, `try/catch`, state updates, resource ownership/disposal, and relevant call sites. Place checks that can fail **before acquiring disposable resources** when possible. Update every use of a replaced object or provider, including registration, cleanup, and error paths.
+
+Keep unchanged behavior explicit; state the focused verification needed. The user writes the modified production method. Complete exception expressions are allowed, but do not supply a complete rewritten production method unless explicitly requested. If the modification substantially changes the method's responsibility or contract, also use the required `SECCIÓN / PERTENECE A / RECIBE / DEVUELVE / UTILIZA / FLUJO` structure.
+
+---
+
 ## Error handling
 
 When recommending an exception, provide the complete exception-related code ready to use.
@@ -904,6 +925,19 @@ Changing ChatGPT conversations is **not** ending a development session. When the
 4. Confirm the exact next task and resume without rechecking unchanged evidence. Check Git state only when freshness or divergence is in doubt.
 
 If this handoff also changes devices or code, apply the normal Git synchronization and affected-product verification rules. Do not treat a chat-only handoff as a new product build.
+
+---
+
+## Session modes
+
+Development sessions have two explicit modes: **open** and **closed**. Changing chats does not change the mode by itself.
+
+- An explicit start/resume message (for example, `sesión abierta` or `iniciemos una nueva sesión`) opens the session and activates the Session starting protocol. Record the user's supplied start date and time for conversational tracking; do not invent missing timestamps.
+- An explicit closing message (for example, `sesión cerrada`, stopping, or pausing) closes the session after following the Session closing protocol.
+- While **open**, follow the established development workflow, including user-authored production code and appropriate tests, documentation, and Git changes.
+- While **closed**, answer questions and discuss ideas only. Do not provide implementation code, code snippets, tests, shell commands, or patches; do not initiate development tasks, edit files, run tests, or create commits.
+- Ideas and potential decisions discussed while **closed** are provisional. On the next opening, do not implement them automatically; confirm which ones, if any, should be taken forward.
+- Remain in **closed** mode until the user explicitly starts or resumes a development session.
 
 ---
 

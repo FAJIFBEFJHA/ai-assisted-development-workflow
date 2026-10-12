@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT
 
-Last updated: 2026-10-11
+Last updated: 2026-10-12
 
 ## Project
 
@@ -27,11 +27,13 @@ Branch:
     main
 
 Commit:
-    b7896a869647f3e2ac6ec9467a190aca0535a73c
+    564f61be52061c2110cbfb2d4a8721137079627f
 
-Verified repository state:
-    clean
-    up to date with origin/main
+Verified remote state:
+    product commit pushed to origin/main (2026-10-12)
+
+Local working tree:
+    verify with git status when resuming on a device
 ```
 
 Both repositories are public.
@@ -43,14 +45,14 @@ Both repositories are public.
 Current test status:
 
 ```text
-500/500 passing (full suite; 2026-10-11 session review)
+605/605 passing; 0 failed, 0 skipped (full suite; 2026-10-12 session review)
 ```
 
 Beatmap Parsing and Base Model, Hitsound Resolution, and the current Physical Sample Resolution boundary are complete.
 
 ## Current objective
 
-Continue Audio Infrastructure by advancing discrete `TimedHitSoundEvent` values with a cursor across non-overlapping timeline intervals, before introducing real-time sample-accurate scheduling or UI.
+Continue Audio Infrastructure by designing and testing fixed-duration looping of slider-body samples (`SliderSlide` / `SliderWhistle`), before integrating continuous slider-body playback.
 
 The current production audio boundary can:
 
@@ -59,16 +61,17 @@ The current production audio boundary can:
 - play/pause and stop playback; `Stop()` resets a loaded timeline to the beginning
 - keep the main timeline `WaveStream` open and reposition it with `Seek(...)`
 - report timeline position from the seek base plus the rendered WASAPI output clock
-- play transient sources with individual 0-100 volume through `VolumeSampleProvider`
+- play transient sources with individual 0-100 volume and optional finite non-negative relative delays using `VolumeSampleProvider` and `OffsetSampleProvider`
 - mix multiple sources simultaneously and release their readers at the proper lifetime boundary
 - release a partially initialized device if initialization throws, rethrowing the original exception
 - resolve individual logical `HitSoundLayer` values to playable beatmap/custom files, handling missing/external fallback results without inventing a path
 - play hit circles, slider edges, and slider ticks through `HitSoundPlaybackService`
 - enumerate chronological discrete `TimedHitSoundEvent` values in `(startExclusiveMilliseconds, endInclusiveMilliseconds]`
-- dispatch one `TimedHitSoundEvent` to the appropriate immediate playback operation
-- advance/seek a `HitCirclePlaybackCursor` without duplicating hit-circle events
+- advance/seek `TimedHitSoundPlaybackCursor` without repeating events; retain `HitCirclePlaybackCursor`
+- dispatch unified events immediately via `PlayPendingTimedHitSoundEvents(...)`, or prequeue a bounded interval via `QueueTimedHitSoundEventsInRange(...)` before the mixer advances
+- calculate prequeue delays from `soundEvent.Time - startMilliseconds`, with `includeStart` supporting an event exactly at the seek boundary
 
-Next, extend cursor-based advancement to the unified event stream, preserving seek and interval boundaries. The existing immediate playback methods are not a real-time audio scheduler.
+Prequeueing against a common interval origin is verified by mixer-frame tests and integration with timeline audio. It is not an active-playback, audio-clock-driven scheduler; cursor-selected immediate dispatch remains distinct from future-event prequeueing.
 
 ## Current implementation checkpoint
 
@@ -269,7 +272,7 @@ Stop() -> void
 Seek(double timeMilliseconds) -> void
 GetTimelinePositionMilliseconds() -> double
 LoadTimelineAudio(string filePath) -> void
-AddAudioSource(string filePath, int volume = 100) -> void
+AddAudioSource(string filePath, int volume = 100, double delayMilliseconds = 0) -> void
 OnMixerInputEnded(object? sender, SampleProviderEventArgs e) -> void
 OpenAudioFile(string filePath) -> WaveStream
 NormalizeForMixer(WaveStream reader, int targetSampleRate) -> ISampleProvider
@@ -357,11 +360,15 @@ return current ISampleProvider
 `AddAudioSource(...)`:
 
 ```text
-require volume in 0..100
+require volume in 0..100 and finite non-negative delay
     -> ArgumentOutOfRangeException otherwise
 
 require initialized mixer
     -> InvalidOperationException otherwise
+
+calculate delayFrames = delayMilliseconds * sampleRate / 1000
+reject delay beyond supported interleaved sample range
+calculate delaySamples = truncated whole frames * channel count
 
 OpenAudioFile(filePath)
     -> WaveStream
@@ -372,10 +379,15 @@ NormalizeForMixer(reader, mixer.WaveFormat.SampleRate)
 VolumeSampleProvider(normalizedProvider)
     -> volumeProvider.Volume = volume / 100f
 
-register:
-    volumeProvider -> reader
+mixerInput = volumeProvider
+if delaySamples > 0
+    -> OffsetSampleProvider(volumeProvider)
+    -> DelayBySamples = delaySamples
+    -> mixerInput = delayed provider
 
-mixer.AddMixerInput(volumeProvider)
+register mixerInput -> reader in activeReaders
+mixer.AddMixerInput(mixerInput)
+on mixer-add failure, unregister mixerInput and dispose its reader
 ```
 
 Source-reader ownership is explicit:
@@ -426,51 +438,43 @@ Unlike temporary sources managed by `activeReaders`, the timeline `WaveStream` r
 
 `GetTimelinePositionMilliseconds()` converts `WasapiPlayer.GetPosition()` bytes with `OutputWaveFormat.AverageBytesPerSecond` and adds `timelineBaseMilliseconds`. Decoder `CurrentTime` is not the editor clock. `Stop()` now stops the device and invokes `Seek(0)` when a timeline source is loaded.
 
-### Discrete event enumeration and immediate playback
+### Discrete event cursor, relative delays, and prequeueing
 
-`Beatmap.GetTimedHitSoundEventsInRange(...)` combines hit circles, slider edge events, and slider tick events. Each event has `Time`, the original `HitObject`, `HitSoundEventType`, and an optional `EdgeIndex` for slider edges. Results are ordered chronologically; the lower time bound is exclusive and the upper bound is inclusive.
+`Beatmap.GetTimedHitSoundEventsInRange(...)` combines hit circles, slider edges, and slider ticks. Each `TimedHitSoundEvent` carries an absolute `Time`, `HitObject`, `HitSoundEventType`, and an optional slider `EdgeIndex`. Results are chronological with an exclusive lower bound and inclusive upper bound.
 
-`HitSoundPlaybackService` resolves each logical sound layer using `SampleResolver`, adds found audio to `AudioPlaybackEngine`, and returns `SampleResolutionResult` values. Its individual `PlayHitCircle(...)`, `PlaySliderEdge(...)`, and `PlaySliderTick(...)` methods preserve each sound type's separate rules. `PlayTimedHitSoundEvent(...)` selects one of these operations based on `EventType` and validates slider edge indices. This is immediate dispatch, not sample-accurate scheduling.
+`TimedHitSoundPlaybackCursor.AdvanceTo(...)` and `SeekTo(...)` track unified discrete-event progress, including time-zero events and repeated/seeked intervals. `HitCirclePlaybackCursor` remains available. `PlayPendingTimedHitSoundEvents(...)` dispatches cursor-selected events immediately; it does not schedule them by their timestamps.
 
-`HitCirclePlaybackCursor.AdvanceTo(...)` and `SeekTo(...)` track which circles have been processed. They do not yet track the unified event stream. Slider body audio remains separate from discrete slider edge/tick events.
+`HitSoundPlaybackService` propagates optional `delayMilliseconds` through layer, circle, slider-edge, slider-tick, and unified-event playback. `AudioPlaybackEngine.AddAudioSource(...)` uses `OffsetSampleProvider` to produce silence before the source begins. Registration and reader cleanup use the provider actually inserted into the mixer.
+
+`QueueTimedHitSoundEventsInRange(...)` selects events, computes relative delays from the interval's start, and adds those sources before audio playback advances. `includeStart = true` includes a seek-boundary event with zero delay; the default preserves exclusive-start behavior for nonzero starts. Start time zero includes zero-time events by default.
+
+Prequeueing works with a common pre-playback origin, not with a clock-driven lookahead scheduler during playback. Slider-body `SliderSlide` and `SliderWhistle` remain logical layers only, without continuous looping playback.
 
 ### Verification boundary
 
 Automated tests remain hardware-independent.
 
-Current permanent automated coverage includes the uninitialized-output contract for `Play()`, `Pause()`, `Stop()`, `Seek(...)`, `GetTimelinePositionMilliseconds()`, `AddAudioSource(...)`, and `LoadTimelineAudio(...)`. Volume range, sample amplitude scaling, and simultaneous mixing of two volume-adjusted sources are covered without a physical output device.
+Permanent tests cover the uninitialized-output contracts, volume, delayed sample frames, ownership/cleanup of delayed mixer inputs, unified cursor behavior, event prequeueing (including `includeStart`), overlapping sounds, and alignment with timeline audio.
 
-Focused real-device integration tests also verified transient-reader release, persistent timeline-reader lifetime, seeks during playback and from paused/stopped states, rendered-clock advancement across seek, stop/restart positioning, and successful output initialization. These temporary device-dependent tests were removed after verification; the internal `device.Init(...)` failure path was reviewed structurally, not forcibly triggered.
+Focused WASAPI integration checks verified pause/resume with queued hitsounds, pause-seek-requeue-play, and stop/requeue from the beginning, in addition to earlier timeline/device checks. Temporary hardware-dependent tests were removed after verification. The internal `device.Init(...)` failure path was reviewed structurally, not forcibly triggered.
 
 ## Test progression
 
-Recent checkpoints:
+Meaningful full-suite checkpoints:
 
 ```text
-182/182  legacy slider sample-source semantics and fallback coverage
-185/185  edgeSets = 0:0 / pre-first-timing-point inheritance coverage
-190/190  universal bankless beatmap sample fallback coverage
-193/193  audio file opening/error coverage
-197/197  audio format normalization coverage
-198/198  Play() uninitialized-output contract
-199/199  Pause() uninitialized-output contract
-200/200  Stop() uninitialized-output contract
-201/201  AddAudioSource() uninitialized-output contract
-202/202  LoadTimelineAudio() uninitialized-output contract
-203/203  Seek() uninitialized-output contract
-204/204  GetTimelinePositionMilliseconds() uninitialized-output contract
-206/206  invalid source volume boundaries
-209/209  volume amplitude scaling at 0, 50 and 100
-210/210  two concurrent volume-adjusted sources
+210/210  2026-10-10; core audio infrastructure and mixer volume
+500/500  2026-10-11; discrete event dispatch and interval selection
+605/605  2026-10-12; unified cursor, relative delays, prequeueing, seek-boundary handling
 ```
 
-The session review on 2026-10-10 verified the entire permanent suite: 210 passed, 0 failed, 0 skipped. Treat actual source and tests as the implementation truth if this list becomes stale.
+The 2026-10-12 session review reported 605 passed, 0 failed, 0 skipped, with `dotnet test` exit code 0. Product changes were subsequently documented and pushed as commit `564f61be52061c2110cbfb2d4a8721137079627f`. Actual source and tests remain authoritative if later results differ.
 
 ## Workflow tooling
 
 A repository `.editorconfig` remains present in the product repository for naming/style alignment.
 
-The project-specific maintainer/AI workflow now has its candidate home at:
+The project-specific maintainer/AI workflow is authoritative at:
 
 ```text
 ai-assisted-development-workflow/
@@ -580,6 +584,9 @@ Do not mix these into the next audio step unless they become blockers:
 - improve malformed/empty parser-field handling later
 - keep the lazer-specific spinner traversal sound deferred from the canonical legacy model
 - evaluate runtime audio-device loss/recovery only when there is a concrete consumer; partial initialization cleanup is implemented but the forced-failure path remains untested
+- active-playback, clock-driven scheduling and seek/queue controller orchestration remain deferred; prequeueing assumes the mixer has not consumed the interval
+- `Stop()` only clears queued transient hitsounds through `Seek(0)` when timeline audio is loaded; hitsound-only stop behavior is not addressed yet
+- continuous slider-body looping and fixed-duration limits are not implemented yet
 - do not introduce global optimization before deterministic export/reload equivalence exists
 
 ## Exact next workflow task
@@ -588,9 +595,9 @@ Resume the established two-repository workflow with proportional verification. K
 
 ## Exact next product task
 
-Design and implement a cursor that advances the unified `TimedHitSoundEvent` stream through consecutive `(previousPosition, currentPosition]` intervals without repeating events, and can reset after seeking. Use `Beatmap.GetTimedHitSoundEventsInRange(...)` as the event source; retain `HitCirclePlaybackCursor` until a deliberate replacement is justified. Verify zero-time events, adjacent intervals, coincident events, backward movement, and seek boundaries with hardware-independent tests.
+Design and verify fixed-duration looping of a sample for continuous slider-body audio (`SliderSlide` / `SliderWhistle`). First establish sample-provider repetition, duration cutoff, proper resource ownership/cleanup, and hardware-independent tests. Then integrate only after the loop boundary is verified. Preserve the existing discrete slider-edge/tick playback responsibilities.
 
-Do not begin a real-time/sample-accurate scheduler, connect UI, add continuous slider-body scheduling, or introduce global optimization in this step.
+Do not begin an active-playback scheduler, UI work, global optimizer, or unneeded playback-controller abstraction in this step.
 
 ## Source-of-truth order
 
