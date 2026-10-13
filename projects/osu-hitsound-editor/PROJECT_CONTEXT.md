@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT
 
-Last updated: 2026-10-12
+Last updated: 2026-10-13
 
 ## Project
 
@@ -27,10 +27,10 @@ Branch:
     main
 
 Commit:
-    564f61be52061c2110cbfb2d4a8721137079627f
+    37143e2e4b6fb01ecd1495dce6098551903a2d84
 
 Verified remote state:
-    product commit pushed to origin/main (2026-10-12)
+    product commit pushed to origin/main (2026-10-13)
 
 Local working tree:
     verify with git status when resuming on a device
@@ -45,14 +45,14 @@ Both repositories are public.
 Current test status:
 
 ```text
-605/605 passing; 0 failed, 0 skipped (full suite; 2026-10-12 session review)
+646/646 passing; 0 failed, 0 skipped (full suite; 2026-10-13 session review)
 ```
 
 Beatmap Parsing and Base Model, Hitsound Resolution, and the current Physical Sample Resolution boundary are complete.
 
 ## Current objective
 
-Continue Audio Infrastructure by designing and testing fixed-duration looping of slider-body samples (`SliderSlide` / `SliderWhistle`), before integrating continuous slider-body playback.
+Continue Audio Infrastructure by connecting already-verified finite looping playback to continuous slider-body layers (`SliderSlide` / `SliderWhistle`) using each slider's actual duration. Preserve separate slider-edge, slider-tick, and slider-body responsibilities.
 
 The current production audio boundary can:
 
@@ -62,6 +62,7 @@ The current production audio boundary can:
 - keep the main timeline `WaveStream` open and reposition it with `Seek(...)`
 - report timeline position from the seek base plus the rendered WASAPI output clock
 - play transient sources with individual 0-100 volume and optional finite non-negative relative delays using `VolumeSampleProvider` and `OffsetSampleProvider`
+- play finite looping sources with duration, volume, and optional delay using `LoopingWaveStream` and `OffsetSampleProvider.TakeSamples`
 - mix multiple sources simultaneously and release their readers at the proper lifetime boundary
 - release a partially initialized device if initialization throws, rethrowing the original exception
 - resolve individual logical `HitSoundLayer` values to playable beatmap/custom files, handling missing/external fallback results without inventing a path
@@ -273,6 +274,7 @@ Seek(double timeMilliseconds) -> void
 GetTimelinePositionMilliseconds() -> double
 LoadTimelineAudio(string filePath) -> void
 AddAudioSource(string filePath, int volume = 100, double delayMilliseconds = 0) -> void
+AddLoopingAudioSource(string filePath, double durationMilliseconds, int volume = 100, double delayMilliseconds = 0) -> void
 OnMixerInputEnded(object? sender, SampleProviderEventArgs e) -> void
 OpenAudioFile(string filePath) -> WaveStream
 NormalizeForMixer(WaveStream reader, int targetSampleRate) -> ISampleProvider
@@ -390,11 +392,34 @@ mixer.AddMixerInput(mixerInput)
 on mixer-add failure, unregister mixerInput and dispose its reader
 ```
 
+`LoopingWaveStream` provides the finite-looping read boundary:
+
+```text
+requires a seekable WaveStream containing at least one complete audio frame
+resets source position to the beginning on construction
+reads complete frames; when the source ends, rewinds and continues
+supports Span<byte> and byte[] reads
+does not own or dispose the underlying source reader
+```
+
+`AddLoopingAudioSource(...)` provides the playback/lifetime boundary:
+
+```text
+validate finite positive duration, volume in 0..100, and finite non-negative delay
+validate that duration and delay fit whole mixer frames and interleaved sample counts
+open a WaveStream; wrap in LoopingWaveStream without transferring reader ownership
+normalize to the mix sample rate/stereo; apply VolumeSampleProvider
+wrap in OffsetSampleProvider with TakeSamples and DelayBySamples
+register the inserted provider and its original WaveStream in activeReaders
+dispose reader if provider construction or mixer registration fails
+release reader on mixer input end or AudioPlaybackEngine.Dispose()
+```
+
 Source-reader ownership is explicit:
 
 ```text
 before registration
-    -> AddAudioSource owns the WaveStream
+    -> AddAudioSource or AddLoopingAudioSource owns the WaveStream
 
 after registration
     -> AudioPlaybackEngine owns the WaveStream
@@ -450,11 +475,13 @@ Unlike temporary sources managed by `activeReaders`, the timeline `WaveStream` r
 
 Prequeueing works with a common pre-playback origin, not with a clock-driven lookahead scheduler during playback. Slider-body `SliderSlide` and `SliderWhistle` remain logical layers only, without continuous looping playback.
 
+Finite sample repetition and duration cutoff are implemented and tested as audio infrastructure; connecting that behavior to logical slider-body layers remains unfinished.
+
 ### Verification boundary
 
 Automated tests remain hardware-independent.
 
-Permanent tests cover the uninitialized-output contracts, volume, delayed sample frames, ownership/cleanup of delayed mixer inputs, unified cursor behavior, event prequeueing (including `includeStart`), overlapping sounds, and alignment with timeline audio.
+Permanent tests cover the uninitialized-output contracts, volume, delayed sample frames, ownership/cleanup of delayed mixer inputs, unified cursor behavior, event prequeueing (including `includeStart`), overlapping sounds, alignment with timeline audio, and finite looping with duration/delay limits and reader cleanup.
 
 Focused WASAPI integration checks verified pause/resume with queued hitsounds, pause-seek-requeue-play, and stop/requeue from the beginning, in addition to earlier timeline/device checks. Temporary hardware-dependent tests were removed after verification. The internal `device.Init(...)` failure path was reviewed structurally, not forcibly triggered.
 
@@ -466,9 +493,10 @@ Meaningful full-suite checkpoints:
 210/210  2026-10-10; core audio infrastructure and mixer volume
 500/500  2026-10-11; discrete event dispatch and interval selection
 605/605  2026-10-12; unified cursor, relative delays, prequeueing, seek-boundary handling
+646/646  2026-10-13; finite looping WaveStream and duration-limited mixer sources
 ```
 
-The 2026-10-12 session review reported 605 passed, 0 failed, 0 skipped, with `dotnet test` exit code 0. Product changes were subsequently documented and pushed as commit `564f61be52061c2110cbfb2d4a8721137079627f`. Actual source and tests remain authoritative if later results differ.
+The 2026-10-13 session review reported 646 passed, 0 failed, 0 skipped, with `dotnet test` exit code 0. The product changes, including `docs/ROADMAP.md` and `docs/architecture.md`, were pushed as commit `37143e2e4b6fb01ecd1495dce6098551903a2d84`. Actual source and tests remain authoritative if later results differ.
 
 ## Workflow tooling
 
@@ -586,7 +614,7 @@ Do not mix these into the next audio step unless they become blockers:
 - evaluate runtime audio-device loss/recovery only when there is a concrete consumer; partial initialization cleanup is implemented but the forced-failure path remains untested
 - active-playback, clock-driven scheduling and seek/queue controller orchestration remain deferred; prequeueing assumes the mixer has not consumed the interval
 - `Stop()` only clears queued transient hitsounds through `Seek(0)` when timeline audio is loaded; hitsound-only stop behavior is not addressed yet
-- continuous slider-body looping and fixed-duration limits are not implemented yet
+- finite looping is implemented, but logical `SliderSlide` / `SliderWhistle` playback is not yet connected to slider duration
 - do not introduce global optimization before deterministic export/reload equivalence exists
 
 ## Exact next workflow task
@@ -595,7 +623,7 @@ Resume the established two-repository workflow with proportional verification. K
 
 ## Exact next product task
 
-Design and verify fixed-duration looping of a sample for continuous slider-body audio (`SliderSlide` / `SliderWhistle`). First establish sample-provider repetition, duration cutoff, proper resource ownership/cleanup, and hardware-independent tests. Then integrate only after the loop boundary is verified. Preserve the existing discrete slider-edge/tick playback responsibilities.
+Integrate `AudioPlaybackEngine.AddLoopingAudioSource(...)` with the logical slider-body `SliderSlide` and `SliderWhistle` layers, using each slider's real total duration. Preserve separate playback paths for slider edges and ticks, and add hardware-independent regression tests for the new integration.
 
 Do not begin an active-playback scheduler, UI work, global optimizer, or unneeded playback-controller abstraction in this step.
 
