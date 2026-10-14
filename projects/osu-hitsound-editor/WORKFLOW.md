@@ -781,6 +781,16 @@ Do not hard-code `$productRepo` or `$workflowRepo` into tracked files.
 
 ---
 
+## Optional local code inspection (Codex)
+
+Use VS Code for editing and keep the product and workflow repositories in separate integrated PowerShell terminals. Codex is **not** part of the mandatory start-up routine; open a third terminal only when the assistant needs unpublished local source and the user has agreed to a bounded inspection. On a configured machine, `codex-inspect` is an optional personal PowerShell-profile shortcut; otherwise verify Codex CLI and start it with read-only/no-approval permissions. Check `/status` before inspecting.
+
+ChatGPT supplies a scoped inspection request naming the minimum files and questions. Codex reads only what that request authorizes, does not edit or execute product tests, and stops after the evidence report. The user normally transfers only the short final report back to ChatGPT; terminal transcripts or source excerpts are requested only to resolve ambiguity. No automatic agent startup, repository syncing, uploads, new helper scripts, or implied permission to modify `src/`.
+
+Keep model choice, permissions and session quotas explicit. Limits shown by `/status` can be rounded; do not claim a precise token saving from remaining-quota percentages. The optional shortcut belongs outside version control and must not embed device-specific paths in tracked workflow files.
+
+---
+
 ## Switching chats without ending the session
 
 Changing chats is a continuity handoff, not a Git checkpoint. Ensure `PROJECT_CONTEXT.md` contains the current unresolved task; update it only if required. In the new chat, ask the assistant to read `PROJECT_PROFILE.md`, `PROJECT_CONTEXT.md`, and `AI_WORKFLOW.md` from `ai-assisted-development-workflow`, then resume the exact task. An unchanged chat handoff needs no tests, reports, commits, or mirror refresh. See `AI_WORKFLOW.md` for the complete protocol.

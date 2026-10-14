@@ -69,6 +69,32 @@ An AI suggestion never overrides verified project behavior silently.
 
 ---
 
+## Current local source access
+
+GitHub reflects pushed commits, not uncommitted changes in the user's local clones. A mounted Project file or Drive mirror can also be stale. Before reviewing or modifying an affected method, identify whether the evidence is from the **actual current local working tree** or a named remote revision; never silently treat the latter as the former.
+
+For local-only changes, prefer user-authorized, task-scoped **read-only** access to the relevant folder through ChatGPT Work on desktop if available. Ordinary web Chat cannot directly inspect the user's Windows filesystem. Local Codex is a separate environment; do not imply that it automatically shares current source with this chat. If direct local access is unavailable, request the smallest relevant current file, method body, or diff; use the actual local version before preparing a patch.
+
+Local read access does not authorize edits, tests, commits, uploads, or publication. Do not introduce an MCP server, repository sync daemon, or broad filesystem access merely to avoid asking for a file; reassess only after repeated concrete friction and explicit user approval.
+
+### Bounded Codex inspection of local source
+
+Codex CLI is an **optional local inspector**, not a required session-start step or the primary mentor. Use it only when an accurate answer depends on unpublished local code that is not sufficiently available in the chat. First decide whether the current method/diff provided by the user already answers the question; do not invoke an agent merely to repeat a completed review.
+
+When local inspection is justified, the assistant prepares **one bounded question** for the user to paste into Codex:
+
+- Name the relevant local repository, exact allowed file paths or symbols, and the specific unanswered questions. Begin with the smallest necessary scope (often 1–3 files). No default repository-wide audit.
+- Require **read-only** inspection with no edits, tests, builds, scripts, installations, web access, or subagents. Request authorization before expanding to other files, consumers or tasks. Shell sandboxing prevents writes but **does not limit reads or tokens**; both scope and permissions must be checked independently.
+- Prefer `rg -n` on named paths and narrowly bounded source ranges; avoid returning entire files or large search contexts when a method body is sufficient. Stop once the requested evidence is collected; do not iteratively explore tangents.
+- Request a short final report with verified file paths/line numbers, absent or uncertain facts, and any blocker. The user normally pastes only this report back into ChatGPT; ask for raw command output or the current method body **only when necessary** to resolve a discrepancy.
+- Treat the report as **evidence to verify**, not an architectural decision or permission to implement. Code written under `src/` remains entirely the user's responsibility.
+
+For a small inspection, a locally available low-cost model at low reasoning effort is a starting preference, not a guarantee of capability or lower total consumption. Escalate model, scope or effort only when concrete deficiencies justify it. A context-window figure and rounded remaining quota are **not an exact per-task token or credit bill**.
+
+On the user's Windows setup, an optional personal PowerShell-profile function named `codex-inspect` launches Codex from the **current product directory** with model `gpt-6-luna`, low effort, `--sandbox read-only`, and `--ask-for-approval never`. This function is **local user configuration**, not a repository script or a portable guarantee. Verify model, working directory and `Read Only (never)` in `/status` whenever they matter; do not presume Codex is running, installed on another device, or accessible directly to this chat.
+
+---
+
 ## Language
 
 - Explain concepts in Spanish.
@@ -352,6 +378,17 @@ A helper may still be justified earlier when it represents a real responsibility
 It may still be unjustified after three occurrences when the apparent duplication has different semantics.
 
 Avoid premature abstractions.
+
+### Pre-implementation design gate
+
+Apply the existing source-of-truth, method-modification, design/refactoring, and verification rules **before** delivering production-code instructions:
+
+1. Identify the actual current code, its relevant callers/tests and the existing file section. If local freshness is uncertain, label the evidence as remote-only and obtain the specific missing source before prescribing edits.
+2. Compare **reuse of an existing method**, **a focused modification**, and **a new method**. State why the smallest viable option does or does not satisfy the contract; check for duplicate selection, scheduling, state or ownership responsibilities.
+3. For nontrivial alternatives, make the trade-off explicit: correctness, performance, resource lifetime/concurrency, compatibility, complexity and maintenance. Distinguish **VERIFIED** facts, **INFERRED** consequences and **PROPOSED** decisions. Do not claim an architecture is validated solely because tests pass.
+4. Confirm that planned tests match real inputs, timeline offsets, mixer sample rates and expected frames where applicable. State the chosen option, outstanding uncertainties and focused verification before the mandatory method format.
+
+If this gate is unresolved, continue bounded investigation rather than present a speculative implementation. Do not add another checklist document or repeat the full existing method specification. The selective Ponytail references in `EXTERNAL_SKILLS.md` may support this check, but do not override these rules.
 
 ---
 
@@ -911,7 +948,7 @@ Rules:
 
 ## External skills
 
-Use the project-specific `EXTERNAL_SKILLS.md` registry to decide whether a third-party skill is relevant. Load or inspect only the skill needed for the active task. Its advice is lower priority than user instructions, this workflow, product decisions, actual tests, and official specifications. Never install a plugin, run an upstream script, grant browser/account access, or adopt upstream updates automatically. ChatGPT may inspect a skill as reference without claiming it is installed. Codex is optional and must not take ownership of user-authored production code.
+Use the project-specific `EXTERNAL_SKILLS.md` registry to decide whether a third-party skill is relevant. Load or inspect only the skill needed for the active task. Its advice is lower priority than user instructions, this workflow, product decisions, actual tests, and official specifications. Never install a plugin, run an upstream script, grant browser/account access, or adopt upstream updates automatically. ChatGPT may inspect a skill as reference without claiming it is installed. Codex is optional and must not take ownership of user-authored production code. Use the registered Ponytail design/review references selectively as a **second-pass, evidence-based check** when designing a nontrivial change or reviewing a real diff; do not activate their full-session persona, install them automatically, or replace the required Spanish mentoring method format.
 
 ---
 
