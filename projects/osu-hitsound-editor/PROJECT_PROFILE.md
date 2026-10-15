@@ -91,7 +91,7 @@ Run product commands from the root of the `osu-hitsound-editor` repository.
 
 ```text
 Sync/update:
-    git pull
+    Check local repository status before any git pull; follow WORKFLOW.md, "Start of a session".
 
 Build:
     dotnet build
@@ -266,224 +266,47 @@ Invalid states should not silently become plausible-looking valid data.
 
 ## Verification policy
 
-Tests are the primary verification mechanism.
+Tests are the primary verification mechanism. GitHub Actions runs the product test suite.
 
-```text
-Unit/regression tests:
-    Required for deterministic project behavior when practical.
-    Run affected tests during incremental work and the full product suite for meaningful regression checkpoints.
-
-Integration tests:
-    Used when multiple real components must be verified together.
-
-Manual verification:
-    Used for UI, physical audio devices, WASAPI behavior, or other behavior unsuitable for normal automation.
-
-Hardware/device-dependent verification:
-    Keep focused and temporary unless the project deliberately establishes a permanent integration-test environment.
-
-CI:
-    GitHub Actions runs the test suite on the product repository.
-```
-
-If a temporary hardware-dependent test is used only for focused verification:
-
-```text
-verify the behavior
-remove the temporary test
-reuse the latest valid passing permanent-suite result if production and permanent tests are unchanged
-rerun affected checks if prior verification was invalidated
-```
-
-Never change a correct test merely to make an incorrect implementation pass.
-
-State the expected test count when it can be determined.
+For test design, hardware independence, temporary device checks and expected test counts, follow `AI_WORKFLOW.md` (`Tests and verification`). For when to run or reuse verification, follow `WORKFLOW.md` (`Tests` and `Verification proportional to risk`). Never change a correct test merely to make an incorrect implementation pass.
 
 ## External-source policy
 
-For uncertain osu! behavior:
+For uncertain osu! behavior, verify official osu! documentation or the official open-source implementation. For third-party library behavior, verify against the **installed package version**, not an assumed latest version. Current dependency versions are recorded in `Technology` above.
 
-```text
-Primary authoritative source:
-    Official osu! documentation.
-
-Secondary authoritative source:
-    Official osu! open-source implementation.
-
-Rule:
-    Do not guess format/timing/hitsound behavior when authoritative evidence is available.
-```
-
-For external libraries:
-
-```text
-Verify behavior against the exact installed package version when version-specific behavior matters.
-```
-
-Current important versions:
-
-```text
-NAudio:
-    3.1.0
-
-NAudio.Vorbis:
-    3.0.0
-```
+See `AI_WORKFLOW.md` (`External behavior and dependencies`) for the detailed instruction.
 
 ## Architecture / design rules
 
-Evaluate proposed designs and refactors independently.
+The `.osu` parser, osu! timing logic, and logical hitsound representation are implemented within this project. The exporter and optimizer are planned as project-owned implementations. External libraries are acceptable for audio, UI and platform infrastructure.
 
-Consider:
+Keep logical sample identity independent of physical `.osu` `SampleSet`, `SampleIndex` and filenames. Do not introduce CP-SAT or another global optimizer before deterministic `parse -> logical representation -> export -> reload -> logical equivalence verification` is established.
 
-```text
-actual benefit
-implementation cost
-complexity
-risk
-maintainability
-timing
-```
-
-Do not introduce abstractions, helpers, classes, or architectural layers only because they might be useful later.
-
-Preserve the established organization of existing classes unless a change has a real architectural benefit.
-
-Core project logic is primarily implemented by this project:
-
-```text
-.osu parsing
-osu! timing logic
-logical hitsound representation
-exporter
-sample optimization
-```
-
-External libraries are acceptable for infrastructure such as:
-
-```text
-audio
-UI
-platform integration
-```
-
-Keep logical sample identity separate from physical `.osu` representation such as `SampleSet`, `SampleIndex`, and filenames.
-
-Do not introduce CP-SAT or another global optimizer before deterministic:
-
-```text
-parse
--> logical representation
--> export
--> reload
--> logical equivalence verification
-```
-
-works.
+For design trade-offs, refactoring discipline and the existing `Beatmap.cs` organization, follow `AI_WORKFLOW.md` (`Design and refactoring`, `Code organization`, `Project-specific rules`). Established product decisions belong in `docs/DECISIONS.md`.
 
 ## Git / version-control policy
 
-```text
-Primary branch:
-    main
+Primary branch: `main`. Avoid force-pushing `main`. Do not suggest commits after every small change; prepare one on explicit request or when the user stops, pauses or closes the session.
 
-Commit timing:
-    Do not suggest commits after every small change.
-    Prepare/suggest a commit when the user is stopping, pausing, ending the session, or explicitly asks.
-
-Multi-device workflow:
-    verify
-    commit
-    push
-    switch device
-    git status
-    git pull only if the local state is expected
-    git status after pulling
-    run baseline verification
-
-Force-push policy:
-    Avoid force-pushing main.
-```
-
-The product repository is the authoritative source for product code and product documentation.
-
-The workflow repository is the authoritative source for maintainer/AI workflow files.
+The product repository owns product code, tests and product documentation. The workflow repository owns maintainer/AI procedures and continuity files. Follow `WORKFLOW.md` (`Start of a session`, `Working across multiple devices`, `Commit order`) for status checks, safe pulls, commits and pushes.
 
 ## Documentation policy
 
-```text
-README.md:
-    Public introduction, high-level capabilities, build/use information, project status, links.
+Product-owned: `README.md`, `CONTRIBUTING.md`, `docs/ROADMAP.md`, `docs/DECISIONS.md` and `docs/architecture.md`.
 
-CONTRIBUTING.md:
-    Rules that apply to any contributor.
+Workflow-owned: `PROJECT_PROFILE.md` (stable configuration), `PROJECT_CONTEXT.md` (resumable checkpoint), `AI_WORKFLOW.md` (assistant rules) and `WORKFLOW.md` (human process).
 
-docs/architecture.md:
-    Architecture that actually exists.
-
-docs/DECISIONS.md:
-    Stable product/architectural decisions.
-
-docs/ROADMAP.md:
-    Planned product sequence and milestone status.
-
-PROJECT_CONTEXT.md in workflow repository:
-    Current resumable maintainer/AI checkpoint.
-
-WORKFLOW.md in workflow repository:
-    Human development/session process.
-
-AI_WORKFLOW.md in workflow repository:
-    Instructions for the AI assistant.
-
-PROJECT_PROFILE.md in workflow repository:
-    Stable project-specific configuration for the generic workflow.
-```
-
-Do not duplicate `ROADMAP.md`, `DECISIONS.md`, or `architecture.md` into the workflow repository unless a future requirement demonstrates a real need.
+Follow `WORKFLOW.md` (`Documentation updates and patches`, `Update product documentation when needed`, `Update workflow documentation when needed`) for detailed responsibilities. Do not duplicate authoritative product documents into the workflow repository.
 
 ## Documentation editing workflow
 
-For existing tracked documentation with partial changes:
+Follow `WORKFLOW.md` (`Documentation updates and patches`) and `AI_WORKFLOW.md` (`Markdown output and documentation edits`). For changes to tracked files, base the patch on the user's **actual local file**; check with `git apply --check`, and never force a failed patch. Use complete files for new documents or deliberate full replacements.
 
-```text
-prefer a patch against the actual current file
-run git apply --check first
-apply only when the check succeeds
-```
-
-If the check fails:
-
-```text
-stop
-do not force
-identify the base mismatch
-regenerate or reconcile against the actual current version
-```
-
-For:
-
-```text
-new file
-    -> complete file
-
-deliberate full replacement
-    -> complete replacement file
-```
-
-Do not automate this workflow until repeated friction or human-error risk demonstrates that automation would help, unless automation is required for correctness, reproducibility, safety, or CI.
+Do not introduce automation without demonstrated need; see `AI_WORKFLOW.md` (`Automation threshold`).
 
 ## Obsidian / notes
 
-Do not create a new note for every concept.
-
-Prefer:
-
-```text
-use an existing relevant note
-```
-
-Create a new note only when the concept is genuinely new and important.
+Reuse relevant existing Obsidian notes before creating new ones, as specified in `AI_WORKFLOW.md` (`Obsidian`).
 
 ## Source-of-truth order
 
@@ -503,32 +326,4 @@ Point out discrepancies rather than guessing.
 
 ## Migration status
 
-The workflow split is **COMPLETE**.
-
-Verified state:
-
-```text
-workflow repository
-    -> pushed and independently retrievable
-    -> authoritative for maintainer/AI workflow and continuity
-
-New-SessionReview.ps1
-    -> receives -ProductRepository
-    -> reviews both repositories
-    -> runs the product test suite
-    -> writes a portable external report
-    -> verified after removal of the old product-side workflow files
-
-Sync-ProjectContext.ps1
-    -> receives -ProductRepository
-    -> assembles seven continuity files from both repositories
-    -> verifies every copy with SHA256
-    -> verified against the real continuity mirror
-
-product repository
-    -> old workflow/context documents removed
-    -> old workflow scripts removed
-    -> migration commit 398aa417fb4d26fdfe76232f518a2383fff4f34b
-```
-
-There is no product-repository workflow fallback anymore. Maintainer/AI workflow changes belong in this workflow repository.
+The two-repository migration is **COMPLETE**. There is no product-repository fallback for maintainer/AI workflow files. The product repository owns source and product documentation; the workflow repository owns the maintainer/AI process and continuity. Historical migration verification is retained in Git history; `PROJECT_CONTEXT.md` records the current checkpoint, not migration-era history.

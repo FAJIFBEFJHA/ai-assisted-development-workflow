@@ -502,106 +502,11 @@ The 2026-10-14 session review reported 669 passed, 0 failed, 0 skipped, with `do
 
 ## Workflow tooling
 
-A repository `.editorconfig` remains present in the product repository for naming/style alignment.
+The workflow is maintained in the separate `ai-assisted-development-workflow` repository under `projects/osu-hitsound-editor/`. The two-repository migration is **COMPLETE**; product code and documentation remain in the product repository, and maintainer/AI procedures and checkpoints remain in the workflow repository.
 
-The project-specific maintainer/AI workflow is authoritative at:
+The workflow repository owns the verified scripts `New-SessionReview.ps1` (review both repositories and run the product test suite when a meaningful product checkpoint requires it) and `Sync-ProjectContext.ps1` (synchronize the optional seven-file continuity mirror with SHA256 verification). Both scripts require `-ProductRepository` and are documented in `WORKFLOW.md`. No product-repository workflow fallback exists.
 
-```text
-ai-assisted-development-workflow/
-    projects/osu-hitsound-editor/
-```
-
-Current project-specific workflow files:
-
-```text
-PROJECT_PROFILE.md
-PROJECT_CONTEXT.md
-WORKFLOW.md
-AI_WORKFLOW.md
-scripts/New-SessionReview.ps1
-scripts/Sync-ProjectContext.ps1
-```
-
-`New-SessionReview.ps1` has been adapted and locally verified from the workflow repository. It now:
-
-```text
-receives the product repository through -ProductRepository
-discovers the workflow repository from $PSScriptRoot
-runs the product test suite
-reviews both repositories
-writes one report outside both repositories
-replaces local repository paths with portable placeholders
-preserves UTF-8 text correctly under Windows PowerShell 5.1
-```
-
-Migration-era verification (historical):
-
-```text
-Product HEAD:
-    398aa417fb4d26fdfe76232f518a2383fff4f34b
-
-Product tests:
-    202/202 passing
-
-Product repository:
-    clean
-    up to date with origin/main
-
-Workflow repository:
-    initial workflow commit cb0b666a97082f9cee496f3721c167bdd990ca12
-    pushed and independently retrievable
-```
-
-The workflow-repository `New-SessionReview.ps1` successfully reviewed the product after the old product-side workflow files were removed from the working tree. The product baseline remained 202/202 passing.
-
-`Sync-ProjectContext.ps1` has also been adapted and locally verified. It now assembles the continuity mirror from both repositories:
-
-```text
-WORKFLOW REPOSITORY
-    PROJECT_PROFILE.md
-    PROJECT_CONTEXT.md
-    WORKFLOW.md
-    AI_WORKFLOW.md
-
-PRODUCT REPOSITORY
-    docs/ROADMAP.md
-    docs/DECISIONS.md
-    docs/architecture.md
-```
-
-A temporary mirror test copied all seven files successfully, and every source/destination SHA256 comparison matched.
-
-## Workflow migration status
-
-The workflow split is **COMPLETE**.
-
-Verified migration checkpoint:
-
-```text
-workflow repository initial commit:
-    cb0b666a97082f9cee496f3721c167bdd990ca12
-    pushed and independently retrievable
-
-product migration commit:
-    398aa417fb4d26fdfe76232f518a2383fff4f34b
-    pushed to main
-
-product repository:
-    old workflow/context documents removed
-    old workflow scripts removed
-    clean and up to date with origin/main
-
-session review:
-    runs from the separate workflow repository
-    reviews both repositories
-    product tests 202/202 passing
-
-continuity mirror:
-    seven-file synchronization from both repositories verified
-    SHA256 verification passed
-```
-
-The workflow repository is now authoritative for maintainer/AI workflow and continuity files. The product repository remains authoritative for source code, tests, product architecture, decisions, roadmap, and public/contributor documentation.
+Historical migration commits, migration-era test results and implementation details of these scripts remain in Git history and the operational documentation; they are not active product checkpoints. The product repository also contains its `.editorconfig` for source naming/style conventions.
 
 ## Important / technical debt
 
@@ -621,7 +526,7 @@ Do not mix these into the next audio step unless they become blockers:
 
 ## Exact next workflow task
 
-Resume the established two-repository workflow with proportional verification. Keep `PROJECT_CONTEXT.md` tied to the exact pushed product commit and synchronize the optional mirror only after authoritative repository changes are pushed. No unfinished workflow migration work remains.
+The workflow-documentation audit is complete. The four maintainer/AI documents were simplified, their essential instructions and cross-references reviewed, and the workflow diff passed `git diff --check`. No product source or tests were changed, and the recorded product commit and 669/669 test checkpoint remain unchanged. No further workflow audit task is pending; use `WORKFLOW.md` for publication and optional mirror synchronization when closing the session.
 
 ## Exact next product task
 

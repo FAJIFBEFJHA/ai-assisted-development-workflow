@@ -83,6 +83,8 @@ Do not duplicate product `ROADMAP.md`, `DECISIONS.md`, or `architecture.md` into
 
 ## Start of a session
 
+Read the current project instructions and checkpoint using the single authoritative reading order in `AI_WORKFLOW.md` (`Required reading order`). Consult the relevant portion of `docs/ROADMAP.md` and the conditional product documents for the session's actual task. `WORKFLOW.md` supplies operational steps; it need not be read in full at every opening.
+
 Identify the two local clones without hard-coding their paths in tracked files.
 
 Example local variables:
@@ -92,30 +94,38 @@ $productRepo = "<local path to osu-hitsound-editor>"
 $workflowRepo = "<local path to ai-assisted-development-workflow>"
 ```
 
-When switching devices or when remote updates are expected, check for local changes first:
+When changing devices or expecting remote updates, inspect both local repository states **before any pull**:
 
 ```powershell
 git -C $productRepo status --short
 git -C $workflowRepo status --short
 ```
 
-Only if the affected repositories are in an expected state, pull the needed updates:
+Only pull the affected repositories when their local states are understood and safe for synchronization:
 
 ```powershell
 git -C $productRepo pull
 git -C $workflowRepo pull
 ```
 
-Do not pull over unexpected local modifications. For a chat-only handoff on an unchanged device, skip unnecessary synchronization.
+Do not pull over unexpected local modifications. If synchronization changes a workflow document, consult its new version before following it. For an unchanged chat-only handoff, do not perform unnecessary synchronization.
 
-Check both working states when needed:
+When needed, inspect the full working states:
 
 ```powershell
 git -C $productRepo status
 git -C $workflowRepo status
 ```
 
-Before product development, run or reuse a passing baseline for the current source and test state:
+When product source may have changed, compare its current `HEAD` with the `Product checkpoint` recorded in `PROJECT_CONTEXT.md`:
+
+```powershell
+git -C $productRepo rev-parse HEAD
+```
+
+If the commits differ, inspect the actual changes and reconcile the checkpoint before relying on it. GitHub reflects published revisions, not unpublished local work.
+
+Before **product development**, run or reuse a passing test baseline covering the current source and tests:
 
 ```powershell
 Push-Location $productRepo
@@ -123,50 +133,13 @@ dotnet test
 Pop-Location
 ```
 
-Skip product tests for workflow-only documentation changes or a chat-only handoff when nothing relevant changed. Do not start new functional work if a needed baseline is unexpectedly failing.
+Skip product tests for workflow-only documentation work or an unchanged chat handoff with valid prior verification. Do not start new product functionality if a needed baseline fails unexpectedly; investigate the failure first.
 
-Then read, in this order:
-
-```text
-1. workflow repository:
-       projects/osu-hitsound-editor/PROJECT_PROFILE.md
-
-2. workflow repository:
-       projects/osu-hitsound-editor/PROJECT_CONTEXT.md
-
-3. product repository:
-       docs/ROADMAP.md
-
-4. product repository:
-       docs/DECISIONS.md
-       when the task involves architecture/design/established behavior
-
-5. product repository:
-       docs/architecture.md
-       when the task crosses architectural boundaries
-```
-
-Compare the `Product checkpoint` commit recorded in `PROJECT_CONTEXT.md` with the current product `main` commit.
-
-```powershell
-git -C $productRepo rev-parse HEAD
-```
-
-If they differ:
-
-```text
-do not assume the checkpoint still describes current main
-inspect what changed
-reconcile PROJECT_CONTEXT before relying on stale assumptions
-```
-
-Choose one small functional objective and define how the session will end.
-
-Use:
+Choose one session objective, whether product development or workflow maintenance, and define:
 
 ```text
 OBJECTIVE:
-    one concrete functional goal
+    one concrete goal
 
 DONE WHEN:
     observable completion conditions
@@ -175,174 +148,39 @@ VERIFICATION:
     automated and/or manual evidence required
 
 OUT OF SCOPE:
-    nearby work that must not expand the current task
+    nearby work that must not expand the task
 ```
 
-Avoid combining:
-
-```text
-new feature
-+ large refactor
-+ architecture rewrite
-```
-
-in one step unless the task genuinely requires all three.
+Avoid combining a new feature, a large refactor and an architectural rewrite in one step unless truly required.
 
 ---
 
 ## Before implementing a new method
 
-First define the behavior contract:
+Define the observable method contract before production implementation:
 
 ```text
 NORMAL:
-    what observable result should happen
+    Expected behavior.
 
 INVALID / BOUNDARY:
-    relevant states that must be rejected or handled
+    Invalid inputs and relevant boundary cases.
 
 VERIFICATION:
-    automated regression test and/or focused manual/integration check
+    Regression tests and/or focused integration verification.
 ```
 
-If the method creates or retains a resource such as an `IDisposable`, `Stream`, `WaveStream`, file handle, audio device, or event subscription, also answer:
+When resources are involved, establish creation, ownership, lifetime, disposal, partial-failure cleanup and concurrency requirements before implementation.
 
-```text
-Who creates it?
-Who owns it?
-How long must it live?
-Who releases it?
-What happens if initialization fails partway through?
-What concurrency/threading rules apply?
-```
+`AI_WORKFLOW.md` (`New methods`, `Resource ownership`, `Primary learning rule`) is authoritative for the six mandatory sections, concrete types and scopes, directly translatable `FLUJO`, intermediate transformations, and the user's authorship of complete production methods.
 
-Then define the method using exactly:
-
-```text
-SECCIÓN:
-    Where the method belongs in the current class/file.
-
-PERTENECE A:
-    Class that owns the method.
-
-RECIBE:
-    Parameters and their purpose.
-
-DEVUELVE:
-    Return type and meaning.
-
-UTILIZA:
-    Existing properties, methods, classes, or data used.
-    When relevant, classify implementation data as:
-        FIELD NUEVO
-        LOCAL NUEVA
-        PARAMETER
-        EXISTENTE
-    State its exact type, declaration location, scope when relevant, and responsibility.
-
-FLUJO:
-    Short pseudocode directly translatable to code.
-```
-
-
-`FLUJO` must be short and directly translatable to code.
-
-Example:
-
-```text
-FLUJO:
-    si Slides <= 0
-        InvalidOperationException
-
-    si edgeIndex < 0 o edgeIndex > Slides
-        ArgumentOutOfRangeException
-
-    calcular:
-        slider.Time
-        + GetSliderSpanDuration(slider) * edgeIndex
-
-    devolver el resultado
-```
-
-Then implement the complete method.
-
-Do not split the normal process into:
-
-```text
-write signature
--> review
--> write body
-```
-
-unless the signature itself is the concept being studied.
-
-Diagnostic or temporary-tool code may be complete, but it must not be copied into `src/` as a shortcut around the learning workflow.
-
-When working with an AI mentor:
-
-```text
-production code under src/
-    -> author writes it
-
-less abstract explanation
-single pseudocode line
-syntax example
-partial-method review
-    -> not permission for a complete production implementation
-```
-
-Small snippets are acceptable for explaining one expression, one API call, or one exception, but they must not be assembled into a de facto complete production method unless the author explicitly asks for the full implementation.
-
-`FLUJO` must expose important intermediate transformations. In particular:
-
-```text
-builder
-    -> configure builder
-    -> Build()
-    -> concrete result object
-```
-
-must not be compressed into an ambiguous instruction such as "create the result using the builder" when the intermediate type change matters.
-
-Before implementation, verify that the proposed flow covers the applicable:
-
-```text
-normal path
-error paths
-variable scope
-ownership / lifetime
-cleanup
-state transitions
-threading / concurrency
-```
-
-Avoid ambiguous assignment arrows when source and destination could be confused.
-
-Prefer:
-
-```text
-destination = source
-```
-
-or explicitly say:
-
-```text
-guardar source en destination
-```
-
-Do not introduce a predictable requirement from this review only after the author has already implemented the method, unless new evidence genuinely appeared later.
+Do not turn a method into a signature-only exercise unless the signature itself is the learning objective. The author implements production code under `src/`; examples and diagnostics do not implicitly authorize full production implementations.
 
 ---
 
 ## Modifying existing methods
 
-Use the **current method body** as the starting point, not a generic pseudocode replacement. If the method is not available or may have changed, obtain it first.
-
-Describe edits in existing-code order using `[CONSERVAR]`, `[AGREGAR]`, `[REEMPLAZAR]`, and `[ELIMINAR]`. For each addition or replacement, identify the exact location and concrete identifiers/types. Show the revised `FLUJO` only as needed to make the modifications directly implementable.
-
-Check validation before acquiring disposable resources, and review every affected `try/catch`, cleanup path, state transition, and call site. Do not overlook references to a replaced provider or object in dictionaries, mixer inputs, event handlers, or rollback logic.
-
-The author updates the production method. Keep unaffected code unchanged; provide complete exception expressions when appropriate and focused tests after reviewing the change. See `AI_WORKFLOW.md` for the detailed rule.
+Obtain the actual current method body before prescribing changes. The user updates production code. Follow `AI_WORKFLOW.md` (`Modifying existing methods`) for ordered `[CONSERVAR]`, `[AGREGAR]`, `[REEMPLAZAR]`, `[ELIMINAR]` instructions, exact identifiers and types, relevant call sites, resource/error paths, unchanged behavior and focused verification.
 
 ---
 
@@ -378,28 +216,7 @@ When a type transition itself is part of what is being learned, prefer an explic
 
 ## Error handling
 
-Do not hide impossible states with plausible-looking return values.
-
-Use appropriate exceptions.
-
-When using `ArgumentOutOfRangeException`, prefer constructors that include:
-
-```text
-nameof(parameter)
-actual invalid value
-exact English message
-```
-
-Example:
-
-```csharp
-throw new ArgumentOutOfRangeException(
-    nameof(edgeIndex),
-    edgeIndex,
-    $"The slider edge index must be between 0 and {slider.Slides}.");
-```
-
-Exception messages and technical identifiers are written in English.
+Invalid states must not be hidden by plausible-looking values. Follow `AI_WORKFLOW.md` (`Error handling`) for appropriate exceptions with complete English `throw` expressions, exact messages, `nameof(...)`, actual invalid values and correct constructors.
 
 ---
 
@@ -475,53 +292,9 @@ Use the stack trace before changing code.
 
 ## Refactoring rule
 
-Do not refactor merely because the code could look cleaner.
+Refactor only for a demonstrated benefit, not merely to make code appear cleaner. Check the existing responsibility, affected callers, actual duplication, implementation cost and maintenance risk. Preserve semantic distinctions and avoid speculative helpers or abstractions.
 
-Ask:
-
-```text
-Is there a real problem now?
-    no -> do not refactor
-    yes
-        -> does the refactor help the current task,
-           remove real duplication,
-           reduce risk,
-           or clarify an actual responsibility boundary?
-```
-
-Evaluate:
-
-```text
-benefit
-implementation cost
-complexity
-risk
-maintainability
-timing
-```
-
-When duplication is real, use the smallest helper that removes it.
-
-Do not turn a simple repeated precondition into a generic delegate/callback/interface abstraction unless the current feature actually benefits from that extra flexibility.
-
-Use this only as a signal:
-
-```text
-first occurrence
-    -> normally keep local
-
-second similar occurrence
-    -> observe
-
-third identical/simple repetition
-    -> explicitly evaluate a small helper
-```
-
-This is not a mathematical rule.
-
-A real responsibility boundary can justify a helper earlier, while superficially similar code can remain separate when its semantics differ.
-
-Prefer functional progress over premature abstraction.
+For the complete decision criteria, reuse thresholds, and the pre-implementation design gate, follow `AI_WORKFLOW.md` (`Design and refactoring`, `Pre-implementation design gate`). The user remains the author of production changes.
 
 ---
 
@@ -665,8 +438,8 @@ On the receiving device:
 check status of both repositories for local modifications
 only if local states are expected, git pull both repositories
 check status of both repositories after pulling
-run product baseline verification
-compare PROJECT_CONTEXT product checkpoint with current product HEAD
+run or reuse the product baseline only when product source/tests changed or product development resumes
+compare PROJECT_CONTEXT product checkpoint with current product HEAD when the product may have changed
 continue
 ```
 

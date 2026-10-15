@@ -24,7 +24,7 @@ Read `PROJECT_PROFILE.md` before applying this file.
 
 ## Required reading order
 
-At the beginning of a new or resumed development session, read:
+At the beginning of a new or resumed development session, read the current authoritative files in this order:
 
 ```text
 1. workflow repository:
@@ -33,19 +33,25 @@ At the beginning of a new or resumed development session, read:
 2. workflow repository:
        projects/osu-hitsound-editor/PROJECT_CONTEXT.md
 
-3. product repository:
-       docs/ROADMAP.md
+3. workflow repository:
+       projects/osu-hitsound-editor/AI_WORKFLOW.md
+       (this file; apply the assistant rules relevant to the task)
 
-4. product repository:
+4. product repository (for product development; for workflow-only work, only when relevant):
+       relevant part of docs/ROADMAP.md
+
+5. product repository:
        docs/DECISIONS.md
        when architecture, design, or established behavior is involved
 
-5. product repository:
+6. product repository:
        docs/architecture.md
        when component boundaries or data flow are involved
 ```
 
-Do not rely on chat memory when these sources provide a newer verified checkpoint.
+Before performing Git, test, documentation, device-switch or session-closing operations, consult the corresponding sections of `WORKFLOW.md`. This is selective procedural reading; do not load the entire operational document for every task.
+
+Use live authoritative repository files rather than stale cached Project/Drive copies when freshness matters. Do not rely on chat memory over newer verified evidence. When switching devices or expecting remote changes, verify the local working state before any `git pull` as required by `WORKFLOW.md` (`Start of a session`).
 
 ---
 
@@ -656,82 +662,13 @@ Do not run the script again after documentation-only or formatting-only correcti
 
 ## Multi-device workflow
 
-Git/GitHub is the synchronization mechanism for both repositories.
-
-Google Drive, OneDrive, or manual folder copying must not be used to synchronize either Git working tree.
-
-Each device uses its own clones.
-
-Before switching devices:
-
-```text
-PRODUCT REPOSITORY
-    verify
-    commit if changed
-    push
-    confirm expected status
-
-WORKFLOW REPOSITORY
-    update continuity
-    commit if changed
-    push
-    confirm expected status
-```
-
-On the receiving device:
-
-```text
-check both repository statuses for local changes
-if local states are expected, pull both repositories
-check both statuses after pulling
-run product baseline verification
-compare PROJECT_CONTEXT Product checkpoint with product HEAD
-continue
-```
-
-Rules:
-
-- Only one device should actively modify the same checkpoint at a time.
-- If unfinished product work is not suitable for `main`, use a temporary pushed branch.
-- Do not use `git stash` as a transfer mechanism because stashes are local.
-- Do not use `git push --force` on `main`.
-- If `git pull` finds unexpected local changes or conflicts, inspect them before destructive commands.
-- When the user says they are continuing from another device, treat it as a session start and re-establish both repository states and the product test checkpoint.
+Follow `WORKFLOW.md` (`Working across multiple devices`) for both-repository synchronization, local-state checks before any pull, handling unexpected changes, temporary branches, and verification when changing devices. Git/GitHub is the repository transport; Google Drive, OneDrive and manual folder copies are not alternatives for synchronizing Git working trees. A chat-only handoff without local changes does not require repeating device-switch checks.
 
 ---
 
 ## Portable scripts and local configuration
 
-Tracked scripts must not hard-code:
-
-```text
-drive letters
-user-profile paths
-product repository locations
-workflow repository locations
-Google Drive mount points
-machine-specific secrets
-```
-
-Derive paths from:
-
-```text
-$PSScriptRoot
-Git repository discovery
-explicit parameters
-environment variables for unavoidable machine-local locations
-```
-
-Routine workflow scripts target Windows PowerShell 5.1 unless a newer runtime is materially required.
-
-Do not use newer PowerShell/.NET APIs merely for convenience when a simple compatible alternative exists.
-
-If a script genuinely requires a newer PowerShell version:
-
-```text
-document the requirement
-fail clearly when the required runtime is unavailable
-```
+Follow `WORKFLOW.md` (`Portable scripts and local configuration`, `Project-specific script interface`) for Windows PowerShell compatibility, portable paths, explicit script parameters, and device-local settings. Use the actual commands and dependencies recorded in `PROJECT_PROFILE.md`; do not invent replacement invocations or hard-code machine-specific paths.
 
 ---
 
@@ -829,120 +766,19 @@ When mentoring, the goal is the user's understanding and user-authored productio
 
 ## Continuity responsibilities
 
-### Product repository
-
-Treat these as product-owned:
-
-```text
-docs/DECISIONS.md
-    -> established architectural/product decisions
-
-docs/ROADMAP.md
-    -> planned product sequence and stage progress
-
-docs/architecture.md
-    -> architecture that actually exists
-```
-
-### Workflow repository
-
-Treat these as maintainer/AI-owned:
-
-```text
-PROJECT_PROFILE.md
-    -> stable project-specific workflow configuration
-
-PROJECT_CONTEXT.md
-    -> current resumable development checkpoint
-
-WORKFLOW.md
-    -> human development/session process
-
-AI_WORKFLOW.md
-    -> instructions for the AI assistant
-```
-
-Do not duplicate a document into both repositories merely for convenience.
+The product repository owns code, tests and product documentation. The workflow repository owns maintainer/AI rules, session procedures and checkpoints. Follow `WORKFLOW.md` (`Documentation updates and patches`, `Update product documentation when needed`, `Update workflow documentation when needed`) for individual file responsibilities. Do not duplicate authoritative documents into both Git repositories.
 
 ---
 
 ## Product checkpoint validation
 
-`PROJECT_CONTEXT.md` records the exact product commit it describes.
-
-At session start, compare it with the actual product repository:
-
-```powershell
-git -C $productRepo rev-parse HEAD
-```
-
-If it differs from `Product checkpoint`:
-
-```text
-do not assume PROJECT_CONTEXT is current
-inspect product changes
-reconcile the checkpoint
-then continue
-```
-
-The commit SHA is evidence that the workflow context corresponds to a concrete product state.
+`PROJECT_CONTEXT.md` describes the product commit recorded in that file, not necessarily unpublished local changes. Follow `WORKFLOW.md` (`Start of a session`) for product `HEAD` comparisons when freshness is in doubt. Investigate mismatches using current source and tests instead of guessing or silently trusting the checkpoint.
 
 ---
 
 ## Google Drive synchronization
 
-Google Drive is an optional read-only mirror for AI continuity.
-
-It is not the source of truth.
-
-The mirror is assembled from authoritative sources in both repositories.
-
-Expected workflow-repository sources:
-
-```text
-PROJECT_PROFILE.md
-PROJECT_CONTEXT.md
-WORKFLOW.md
-AI_WORKFLOW.md
-```
-
-Expected product-repository sources:
-
-```text
-docs/ROADMAP.md
-docs/DECISIONS.md
-docs/architecture.md
-```
-
-The synchronization script lives in the workflow repository:
-
-```text
-projects/osu-hitsound-editor/scripts/Sync-ProjectContext.ps1
-```
-
-Target invocation:
-
-```powershell
-& "$workflowRepo\projects\osu-hitsound-editor\scripts\Sync-ProjectContext.ps1" `
-    -ProductRepository $productRepo
-```
-
-The mirror directory is configured per device through:
-
-```text
-OSU_HITSOUND_CONTEXT_MIRROR
-```
-
-Rules:
-
-- No device-specific path belongs in tracked files.
-- The AI must not modify Google Drive mirror files directly.
-- Synchronize only after the authoritative repositories are in the intended pushed state.
-- Never merge divergent repository/mirror files automatically.
-- A cached Project snapshot exposed to ChatGPT may be stale.
-- Do not use a cached snapshot to override or diagnose current repository state.
-- When freshness matters, verify the live mirror or repository directly.
-- If repository and mirror differ, the authoritative repositories win.
+The Google Drive continuity mirror is optional and is never authoritative. The assistant must not edit mirror files directly. Follow `WORKFLOW.md` (`Continuity mirror`, `Commit order`) for the source files, synchronization procedure, verification and timing. Do not diagnose synchronization failures using only cached Project attachments; verify live evidence. Never merge divergent mirror and repository files automatically.
 
 ---
 
@@ -980,32 +816,15 @@ Development sessions have two explicit modes: **open** and **closed**. Changing 
 
 ## Session starting protocol
 
-When the user starts or resumes a development session:
+When the user explicitly starts or resumes a development session:
 
-1. Read `PROJECT_PROFILE.md` from the workflow repository.
-2. Read `PROJECT_CONTEXT.md` from the workflow repository.
-3. Read the relevant part of `docs/ROADMAP.md` from the product repository.
-4. Read `docs/DECISIONS.md` if the next task involves architecture/design or established behavior.
-5. Read `docs/architecture.md` when component boundaries/data flow matter.
-6. Confirm:
-   - current stage
-   - expected verification checkpoint
-   - last completed functionality
-   - exact next product task
-7. Check repository freshness when changing devices, when local/remote divergence is plausible, or before modifying files. Reuse known clean state for a chat-only handoff.
-8. Compare the product `HEAD` with `PROJECT_CONTEXT.md` `Product checkpoint` when the product may have changed.
-9. For product development, run or reuse a `dotnet test` baseline that covers the current source and tests. For documentation-only workflow work or an unchanged chat handoff, do not rerun it.
-10. Compare test results with the checkpoint only if new product verification was needed.
-11. If the commit or test checkpoint differs:
-   - do not guess why
-   - inspect current source/tests/history
-   - treat actual code/tests as implementation truth
-   - update/reconcile `PROJECT_CONTEXT.md` after the discrepancy is understood
-12. Restate the next task in one short sentence.
-13. Define `OBJECTIVE / DONE WHEN / VERIFICATION / OUT OF SCOPE`.
-14. If a new method is required, use the required method format.
-15. Do not start unrelated refactors or technical-debt work unless it blocks the current task.
-16. Do not begin implementation until the existing product baseline is passing or the reason for an existing failure is understood.
+1. Follow `Required reading order`, including this `AI_WORKFLOW.md`, and consult `WORKFLOW.md` (`Start of a session`) for any repository or verification operations. Do not assume GitHub includes uncommitted local changes.
+2. Confirm the current product stage, last completed functionality, verified test checkpoint and exact next product task from `PROJECT_CONTEXT.md`. A session whose objective is workflow-only must not automatically start that deferred product task.
+3. Check repository freshness when the device changes, local/remote divergence is plausible, or files will be modified. Before any pull, inspect the relevant local repository status. For an unchanged chat-only handoff, reuse known clean evidence.
+4. If the product may have changed, compare its actual `HEAD` with the `Product checkpoint` in `PROJECT_CONTEXT.md`. Investigate any mismatch using current source, tests and history; do not silently trust or rewrite the checkpoint.
+5. For product development, run or reuse a passing `dotnet test` baseline covering the current source and tests. Only compare results with the checkpoint when new verification was needed. Do not rerun product tests for workflow-only documentation or an unchanged chat handoff.
+6. State the current session's task and define `OBJECTIVE / DONE WHEN / VERIFICATION / OUT OF SCOPE`. Use the mandatory method format when relevant, and avoid unrelated refactors.
+7. Do not begin production implementation if a required product baseline is failing unless the failure has first been understood.
 
 ---
 
@@ -1020,7 +839,7 @@ When the user says they are stopping, pausing, going to sleep, or ending the ses
 5. Identify which product documentation changed responsibility-wise.
 6. Identify which workflow documentation changed responsibility-wise.
 7. Record unresolved questions or technical debt without starting new work.
-8. Give exactly one concrete next product task.
+8. Give exactly one concrete next task for the active session. During workflow-only work, retain the deferred product task in `PROJECT_CONTEXT.md` without starting it.
 9. If product changes exist:
    - verify product
    - commit product
