@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT
 
-Last updated: 2026-10-14
+Last updated: 2026-10-15
 
 ## Project
 
@@ -27,10 +27,10 @@ Branch:
     main
 
 Commit:
-    9778cd30e7a3f790d7689e4e2f78847014a60178
+    35015f80049b4aca7334921b57e4d3f8b2abb5e7
 
 Verified remote state:
-    product commit pushed to origin/main (2026-10-14)
+    product commit pushed to origin/main (2026-10-15)
 
 Local working tree:
     verify with git status when resuming on a device
@@ -526,7 +526,13 @@ Do not mix these into the next audio step unless they become blockers:
 
 ## Exact next workflow task
 
-The workflow-documentation audit is complete. The four maintainer/AI documents were simplified, their essential instructions and cross-references reviewed, and the workflow diff passed `git diff --check`. No product source or tests were changed, and the recorded product commit and 669/669 test checkpoint remain unchanged. No further workflow audit task is pending; use `WORKFLOW.md` for publication and optional mirror synchronization when closing the session.
+The workflow-documentation audit is complete and published. No workflow-audit task is pending. Follow `WORKFLOW.md` for repository publication, cross-repository checkpoint updates, and optional mirror synchronization.
+
+## Planned architecture milestone (after Audio Infrastructure)
+
+Product documentation commit `35015f80049b4aca7334921b57e4d3f8b2abb5e7` records decision D027 in `docs/DECISIONS.md` and the architecture-review/refactoring milestone in `docs/ROADMAP.md`, scheduled **after Audio Infrastructure and before WPF editor implementation**. The intended direction is a modular monolith with clear domain, application-coordination, and infrastructure responsibilities, plus MVVM for WPF; adopt abstractions or multiple projects only when justified by verified consumers and costs. The architecture review and refactoring have **not** started.
+
+This product commit changes documentation only. The latest full product test verification remains **669/669 passing on 2026-10-14**; tests were not rerun for the documentation change. The next product task below is unchanged.
 
 ## Exact next product task
 
