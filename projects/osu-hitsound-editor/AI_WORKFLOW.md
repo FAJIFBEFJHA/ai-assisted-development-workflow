@@ -788,16 +788,27 @@ Use the project-specific `EXTERNAL_SKILLS.md` registry to decide whether a third
 
 ---
 
-## Chat handoff protocol
+## Chat handoff and recovery protocol
 
-Changing ChatGPT conversations is **not** ending a development session. When the chat approaches its length limit or the user asks to switch chats:
+Changing ChatGPT conversations is **not** ending a development session. A context limit may already have discarded recent messages before the assistant notices. Neither a final chat summary nor a remembered mode or task is guaranteed complete.
 
-1. Update `PROJECT_CONTEXT.md` only if a meaningful, unsaved checkpoint or decision would otherwise be lost. Do not turn the chat transcript into a diary.
-2. If no repository content changed, do not create a commit, run tests, generate a session review, or synchronize the mirror merely because the chat changes.
-3. In the new chat, read `PROJECT_PROFILE.md`, `PROJECT_CONTEXT.md`, `AI_WORKFLOW.md`, and the relevant product documents from their authoritative repositories; prefer the latest live files over stale snapshots.
-4. Confirm the exact next task and resume without rechecking unchanged evidence. Check Git state only when freshness or divergence is in doubt.
+### Handoff: prompt only (old chat)
 
-If this handoff also changes devices or code, apply the normal Git synchronization and affected-product verification rules. Do not treat a chat-only handoff as a new product build.
+1. Produce one copy-ready recovery prompt; **do not edit** `PROJECT_CONTEXT.md`, any repository file, or a separate handoff document. Do not run scripts, tests, builds, Git writes, or mirror synchronization as part of handoff. Meaningful project checkpoints are maintained through the ordinary development/closing process, independently of switching chats.
+2. Include direct URLs to the product and workflow repositories and to the authoritative `PROJECT_PROFILE.md`, `PROJECT_CONTEXT.md`, and `AI_WORKFLOW.md` documents. Instruct the new chat to read the current files in the required order and consult `WORKFLOW.md` and product documents when relevant.
+3. Include a **provisional chronology** of relevant activities, not just the task in `PROJECT_CONTEXT.md`: mark completed, paused, and active work; preserve known decisions, verified results and test checkpoints, unresolved failures, the last confirmed step, session mode if known, and the proposed next action. Avoid dumping the transcript or exposing private data.
+4. Explicitly warn that the chronology can be **incomplete, stale, or wrong**, especially after context loss. Label uncertainty rather than invent missing tasks or asserting that nothing else happened. Do not treat the generated prompt as an authoritative checkpoint.
+
+### Recovery: evidence before action (new chat)
+
+1. Read current authoritative instructions and checkpoints before acting. Compare the provisional chronology with repository documents and any current user-provided files. Do not infer the active activity only from the next product task in `PROJECT_CONTEXT.md`.
+2. When the previous chat may have lost context or source/test/workflow changes need reconciliation, request the bounded read-only `Get-ResumeState.ps1` diagnostic documented under `WORKFLOW.md` (`Switching chats without ending the session`). The user runs it against the **actual local repositories** and reviews its output before sharing; GitHub and cached attachments cannot prove unpublished local state. Do not claim to have executed a local script remotely.
+3. Interpret committed changes since the documented product checkpoint separately from uncommitted files, and distinguish affected test files from **actual tests executed**. Historical passing counts do not establish a new pass; unavailable commits or evidence mean `UNKNOWN`, not zero changes. Recent workflow commits are historical unless an explicit workflow baseline establishes a full delta.
+4. Reconstruct the **ordered activity history** and classify claims as **VERIFIED**, **PROVISIONAL**, **CONFLICT**, or **UNKNOWN**. Prefer current source and tests when they disagree with summaries. Resolve material gaps with a targeted user confirmation or current file; do not force a binary choice between the documented product task and a possibly forgotten activity.
+5. If specific architecture, ownership, resource-lifecycle, or data-flow questions remain after reading current docs and evidence, optionally request one **bounded Codex inspection** of the relevant classes/tests under the existing read-only rules. Do not audit or describe the whole system by default, and verify Codex's findings against source evidence.
+6. Recover the session mode from reliable evidence or ask for confirmation if uncertain. Changing chats does not open or close a session. Do not resume implementation, run product tests, modify files, or perform Git writes as part of initial recovery; after confirmation, follow normal session rules and verify only what changed.
+
+For a device switch, apply `WORKFLOW.md` (`Working across multiple devices`) before any pull. An unchanged chat-only handoff does not require commits, tests, reviews, or mirror refreshes.
 
 ---
 

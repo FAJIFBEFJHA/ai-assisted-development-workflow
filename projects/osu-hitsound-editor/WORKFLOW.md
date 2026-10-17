@@ -566,7 +566,28 @@ Keep model choice, permissions and session quotas explicit. Limits shown by `/st
 
 ## Switching chats without ending the session
 
-Changing chats is a continuity handoff, not a Git checkpoint. Ensure `PROJECT_CONTEXT.md` contains the current unresolved task; update it only if required. In the new chat, ask the assistant to read `PROJECT_PROFILE.md`, `PROJECT_CONTEXT.md`, and `AI_WORKFLOW.md` from `ai-assisted-development-workflow`, then resume the exact task. An unchanged chat handoff needs no tests, reports, commits, or mirror refresh. See `AI_WORKFLOW.md` for the complete protocol.
+Changing chats is a **prompt-only handoff**, not a Git checkpoint or session close. The old chat generates one provisional chronology and recovery prompt, with direct links to the authoritative project sources. It does **not** update `PROJECT_CONTEXT.md`, write a handoff file, run tests, commit, push, or synchronize a mirror merely for the transition. The prompt must warn that messages may already be missing; see `AI_WORKFLOW.md` (`Chat handoff and recovery protocol`).
+
+The new chat reads the current authoritative files, rather than trusting the prompt as a complete record:
+
+- [PROJECT_PROFILE.md](https://github.com/FAJIFBEFJHA/ai-assisted-development-workflow/blob/main/projects/osu-hitsound-editor/PROJECT_PROFILE.md)
+- [PROJECT_CONTEXT.md](https://github.com/FAJIFBEFJHA/ai-assisted-development-workflow/blob/main/projects/osu-hitsound-editor/PROJECT_CONTEXT.md)
+- [AI_WORKFLOW.md](https://github.com/FAJIFBEFJHA/ai-assisted-development-workflow/blob/main/projects/osu-hitsound-editor/AI_WORKFLOW.md)
+- [WORKFLOW.md](https://github.com/FAJIFBEFJHA/ai-assisted-development-workflow/blob/main/projects/osu-hitsound-editor/WORKFLOW.md)
+- Product repository: https://github.com/FAJIFBEFJHA/osu-hitsound-editor
+
+When local changes or uncertainty require Git reconciliation, run the bounded **read-only** resume diagnostic from the **workflow repository**, with the same mandatory `-ProductRepository` argument used by other workflow scripts. Before running the command, define `$workflowRepo` and `$productRepo` in the current PowerShell session as the absolute local paths to the workflow and product repositories, respectively. Do not assume variables from a previous terminal session are still available:
+
+```powershell
+& "$workflowRepo\projects\osu-hitsound-editor\scripts\Get-ResumeState.ps1" `
+    -ProductRepository $productRepo
+```
+
+Optional `-RecentCommits` (default `5`) and `-MaxFiles` (default `20`) cap the report. The script prints to the console and does **not** run `dotnet test`, change tracked files, generate reports, fetch, or synchronize. Inspect its output before sharing; repository-relative filenames can be sensitive. Its upstream comparison uses **locally cached references**, not fresh remote verification.
+
+Interpret checkpoint-relative committed changes, local modifications, touched test files, and historical suite results separately. If the script is missing or cannot run, request only the smallest necessary read-only evidence; never fabricate a diagnostic. If new source/tests require actual verification, handle that under the ordinary resumed development process, **not** the handoff. Use optional scoped Codex inspection only for unresolved technical questions, following `Optional local code inspection (Codex)`; a full architectural audit is not a default recovery step.
+
+An unchanged chat-only handoff requires no tests, session review, commits, or mirror refresh. A device change still requires repository-state checks before pulling, as described in `Working across multiple devices`.
 
 ---
 
