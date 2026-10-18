@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT
 
-Last updated: 2026-10-15
+Last updated: 2026-10-18
 
 ## Project
 
@@ -27,10 +27,10 @@ Branch:
     main
 
 Commit:
-    35015f80049b4aca7334921b57e4d3f8b2abb5e7
+    f55565adb616032065d8d197b80cfa96050db9f7
 
 Verified remote state:
-    product commit pushed to origin/main (2026-10-15)
+    product commit pushed to origin/main (2026-10-18); confirmed on GitHub
 
 Local working tree:
     verify with git status when resuming on a device
@@ -45,14 +45,16 @@ Both repositories are public.
 Current test status:
 
 ```text
-669/669 passing; 0 failed, 0 skipped (full suite; 2026-10-14 session review)
+674/674 passing; 0 failed, 0 skipped (full suite; 2026-10-18 session review)
 ```
 
 Beatmap Parsing and Base Model, Hitsound Resolution, and the current Physical Sample Resolution boundary are complete.
 
 ## Current objective
 
-On the next explicitly opened development session, investigate and define how playback should reconstruct the *remaining* slider-body sound when starting or seeking inside an already-running slider. First verify the relevant current code and ownership/timing contracts; preserve distinct slider-edge, slider-tick, and slider-body responsibilities. Do not assume head-triggered prequeueing covers in-slider seeks.
+On the next explicitly opened development session, extend `HitSoundPlaybackService.PlaySliderBody(...)` to play only the remaining slider-body duration and pass the elapsed slider time as `sourceOffsetMilliseconds`. Keep head-triggered prequeueing unchanged; reconstructing active sliders during an in-slider seek remains a subsequent task. The user writes production code.
+
+Manual testing in osu!stable during the 2026-10-17/18 session confirmed that an in-slider start plays only the remaining body and preserves the original loop phase; repeating the same test in lazer is not necessary for this checkpoint.
 
 The current production audio boundary can:
 
@@ -62,7 +64,7 @@ The current production audio boundary can:
 - keep the main timeline `WaveStream` open and reposition it with `Seek(...)`
 - report timeline position from the seek base plus the rendered WASAPI output clock
 - play transient sources with individual 0-100 volume and optional finite non-negative relative delays using `VolumeSampleProvider` and `OffsetSampleProvider`
-- play finite looping sources with duration, volume, and optional delay using `LoopingWaveStream` and `OffsetSampleProvider.TakeSamples`
+- play finite looping sources with duration, volume, optional delay, and initial sample-phase offset using `LoopingWaveStream` and `OffsetSampleProvider.TakeSamples`
 - mix multiple sources simultaneously and release their readers at the proper lifetime boundary
 - release a partially initialized device if initialization throws, rethrowing the original exception
 - resolve individual logical `HitSoundLayer` values to playable beatmap/custom files, handling missing/external fallback results without inventing a path
@@ -275,7 +277,7 @@ Seek(double timeMilliseconds) -> void
 GetTimelinePositionMilliseconds() -> double
 LoadTimelineAudio(string filePath) -> void
 AddAudioSource(string filePath, int volume = 100, double delayMilliseconds = 0) -> void
-AddLoopingAudioSource(string filePath, double durationMilliseconds, int volume = 100, double delayMilliseconds = 0) -> void
+AddLoopingAudioSource(string filePath, double durationMilliseconds, int volume = 100, double delayMilliseconds = 0, double sourceOffsetMilliseconds = 0) -> void
 OnMixerInputEnded(object? sender, SampleProviderEventArgs e) -> void
 OpenAudioFile(string filePath) -> WaveStream
 NormalizeForMixer(WaveStream reader, int targetSampleRate) -> ISampleProvider
@@ -406,9 +408,11 @@ does not own or dispose the underlying source reader
 `AddLoopingAudioSource(...)` provides the playback/lifetime boundary:
 
 ```text
-validate finite positive duration, volume in 0..100, and finite non-negative delay
+validate finite positive duration, volume in 0..100, finite non-negative delay and source offset
 validate that duration and delay fit whole mixer frames and interleaved sample counts
 open a WaveStream; wrap in LoopingWaveStream without transferring reader ownership
+convert source offset to original-source frames; reject non-finite or >= 2^53 frame offsets
+compute phase frame modulo original-source frame count and seek to the frame-aligned byte position
 normalize to the mix sample rate/stereo; apply VolumeSampleProvider
 wrap in OffsetSampleProvider with TakeSamples and DelayBySamples
 register the inserted provider and its original WaveStream in activeReaders
@@ -496,9 +500,10 @@ Meaningful full-suite checkpoints:
 605/605  2026-10-12; unified cursor, relative delays, prequeueing, seek-boundary handling
 646/646  2026-10-13; finite looping WaveStream and duration-limited mixer sources
 669/669  2026-10-14; slider-body playback and integration into the timed-event prequeue path
+674/674  2026-10-18; phase-aligned looping source offsets and 5 new test cases
 ```
 
-The 2026-10-14 session review reported 669 passed, 0 failed, 0 skipped, with `dotnet test` exit code 0. Slider-body playback, prequeue integration, tests, and updates to `docs/ROADMAP.md` / `docs/architecture.md` were pushed as product commit `9778cd30e7a3f790d7689e4e2f78847014a60178`. The prior 646/646 checkpoint at `37143e2e4b6fb01ecd1495dce6098551903a2d84` remains historical. Actual source and tests remain authoritative if later results differ.
+The 2026-10-18 session review reported 674 passed, 0 failed, 0 skipped (`dotnet test` exit code 0); `git diff --check` was clean. The published product commit `f55565adb616032065d8d197b80cfa96050db9f7` contains the new `AddLoopingAudioSource(...)` offset parameter, phase-aligned frame positioning, 5 new test cases, and updates to `docs/ROADMAP.md` and `docs/architecture.md`. The previous 669/669 checkpoint from 2026-10-14 remains historical. Actual source and tests remain authoritative if later results differ.
 
 ## Workflow tooling
 
@@ -532,11 +537,11 @@ The workflow-documentation audit is complete and published. No workflow-audit ta
 
 Product documentation commit `35015f80049b4aca7334921b57e4d3f8b2abb5e7` records decision D027 in `docs/DECISIONS.md` and the architecture-review/refactoring milestone in `docs/ROADMAP.md`, scheduled **after Audio Infrastructure and before WPF editor implementation**. The intended direction is a modular monolith with clear domain, application-coordination, and infrastructure responsibilities, plus MVVM for WPF; adopt abstractions or multiple projects only when justified by verified consumers and costs. The architecture review and refactoring have **not** started.
 
-This product commit changes documentation only. The latest full product test verification remains **669/669 passing on 2026-10-14**; tests were not rerun for the documentation change. The next product task below is unchanged.
+That historical commit changed documentation only. The subsequent 2026-10-18 product commit adds a tested audio feature. Current full-suite verification is **674/674 passing on 2026-10-18**.
 
 ## Exact next product task
 
-On the next explicit session opening, inspect the actual current methods and design the smallest correct way to reconstruct **only the remaining slider-body audio** when starting or seeking partway through a slider. Establish expected loop phase, remaining duration, ownership, interactions with normal head-triggered prequeueing, and hardware-independent frame-based verification **before** prescribing production changes. The user authors any `src/` implementation.
+On the next explicit session opening, inspect the current local body of `HitSoundPlaybackService.PlaySliderBody(...)`, then have the user extend it with optional elapsed-slider time to calculate remaining duration (`GetSliderDuration(slider) - elapsedMilliseconds`) and pass `sourceOffsetMilliseconds: elapsedMilliseconds` to the now-verified engine method. Preserve head-start behavior, sample resolution, existing reader ownership, and slider-edge/tick independence; verify duration, phase, and invalid/boundary inputs with hardware-independent tests before addressing detection of sliders active at an in-slider seek. The user authors all `src/` code.
 
 Do not begin an active-playback scheduler, UI work, global optimizer, or a speculative playback-controller abstraction in this step.
 
