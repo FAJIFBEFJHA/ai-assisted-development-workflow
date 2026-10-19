@@ -27,7 +27,7 @@ Branch:
     main
 
 Commit:
-    f55565adb616032065d8d197b80cfa96050db9f7
+    d9466dc1ba4eaf9d51940dcd543db16832137866
 
 Verified remote state:
     product commit pushed to origin/main (2026-10-18); confirmed on GitHub
@@ -45,14 +45,14 @@ Both repositories are public.
 Current test status:
 
 ```text
-674/674 passing; 0 failed, 0 skipped (full suite; 2026-10-18 session review)
+681/681 passing; 0 failed, 0 skipped (full suite; 2026-10-18 23:07:44 session review)
 ```
 
 Beatmap Parsing and Base Model, Hitsound Resolution, and the current Physical Sample Resolution boundary are complete.
 
 ## Current objective
 
-On the next explicitly opened development session, extend `HitSoundPlaybackService.PlaySliderBody(...)` to play only the remaining slider-body duration and pass the elapsed slider time as `sourceOffsetMilliseconds`. Keep head-triggered prequeueing unchanged; reconstructing active sliders during an in-slider seek remains a subsequent task. The user writes production code.
+On the next explicitly opened development session, reconstruct continuous slider bodies already active at the start of a prequeue interval. Detect eligible sliders, call the verified `PlaySliderBody(...)` with elapsed time, avoid duplicating normal head-triggered playback, and keep continuous-body results separate from synthetic discrete events. The user writes production code.
 
 Manual testing in osu!stable during the 2026-10-17/18 session confirmed that an in-slider start plays only the remaining body and preserves the original loop phase; repeating the same test in lazer is not necessary for this checkpoint.
 
@@ -69,6 +69,7 @@ The current production audio boundary can:
 - release a partially initialized device if initialization throws, rethrowing the original exception
 - resolve individual logical `HitSoundLayer` values to playable beatmap/custom files, handling missing/external fallback results without inventing a path
 - play hit circles, slider edges, slider ticks, and finite looping slider-body layers through `HitSoundPlaybackService`
+- explicitly play only the remaining body of a slider using `PlaySliderBody(..., elapsedMilliseconds: ...)`, preserving its original sample-loop phase
 - enumerate chronological discrete `TimedHitSoundEvent` values in `(startExclusiveMilliseconds, endInclusiveMilliseconds]`
 - advance/seek `TimedHitSoundPlaybackCursor` without repeating events; retain `HitCirclePlaybackCursor`
 - dispatch unified events immediately via `PlayPendingTimedHitSoundEvents(...)`, or prequeue a bounded interval via `QueueTimedHitSoundEventsInRange(...)` before the mixer advances
@@ -478,7 +479,7 @@ Unlike temporary sources managed by `activeReaders`, the timeline `WaveStream` r
 
 `QueueTimedHitSoundEventsInRange(...)` selects events, computes relative delays from the interval's start, and adds those sources before audio playback advances. `includeStart = true` includes a seek-boundary event with zero delay; the default preserves exclusive-start behavior for nonzero starts. Start time zero includes zero-time events by default.
 
-Prequeueing works with a common pre-playback origin, not with a clock-driven lookahead scheduler during playback. `HitSoundPlaybackService.PlaySliderBody(...)` resolves `SliderSlide` and optional `SliderWhistle` logical layers, then passes available local files to `AudioPlaybackEngine.AddLoopingAudioSource(...)` for the full duration returned by `Beatmap.GetSliderDuration(slider)`. Missing custom samples or external fallback requirements are returned without attempting playback.
+Prequeueing works with a common pre-playback origin, not with a clock-driven lookahead scheduler during playback. `HitSoundPlaybackService.PlaySliderBody(...)` resolves `SliderSlide` and optional `SliderWhistle` logical layers, validates optional `elapsedMilliseconds` within `[0, slider duration)`, and passes available local files to `AudioPlaybackEngine.AddLoopingAudioSource(...)` with `remainingDurationMilliseconds = beatmap.GetSliderDuration(slider) - elapsedMilliseconds` and `sourceOffsetMilliseconds: elapsedMilliseconds`. The default offset of zero preserves full-duration slider-head playback. Missing custom samples or external fallback requirements are returned without attempting playback.
 
 `QueueTimedHitSoundEventsInRange(...)` calls `PlaySliderBody(...)` only for an included slider-head (`SliderEdge` with `EdgeIndex = 0`) and passes the same relative delay as the head. The returned body resolution results are appended to that event's results. Repeats/tails do not restart the body. Starting or seeking *inside* a slider is still unhandled: the head is outside the selected interval, so this path does not queue its remaining continuous sound.
 
@@ -486,7 +487,7 @@ Prequeueing works with a common pre-playback origin, not with a clock-driven loo
 
 Automated tests remain hardware-independent.
 
-Permanent tests cover the uninitialized-output contracts, volume, delayed sample frames, ownership/cleanup of delayed mixer inputs, unified cursor behavior, event prequeueing (including `includeStart`), overlapping sounds, alignment with timeline audio, finite looping with duration/delay limits and reader cleanup, and slider-body integration (duration, whistle, delay, missing-sample outcomes, invalid inputs, and head/body mixer-frame alignment).
+Permanent tests cover the uninitialized-output contracts, volume, delayed sample frames, ownership/cleanup of delayed mixer inputs, unified cursor behavior, event prequeueing (including `includeStart`), overlapping sounds, alignment with timeline audio, finite looping with duration/delay limits and reader cleanup, and slider-body integration (duration, whistle, delay, missing-sample outcomes, invalid inputs, head/body mixer-frame alignment, elapsed-time validation, preserved phase, and remaining-duration cutoff).
 
 Focused WASAPI integration checks verified pause/resume with queued hitsounds, pause-seek-requeue-play, and stop/requeue from the beginning, in addition to earlier timeline/device checks. Temporary hardware-dependent tests were removed after verification. The internal `device.Init(...)` failure path was reviewed structurally, not forcibly triggered.
 
@@ -501,9 +502,12 @@ Meaningful full-suite checkpoints:
 646/646  2026-10-13; finite looping WaveStream and duration-limited mixer sources
 669/669  2026-10-14; slider-body playback and integration into the timed-event prequeue path
 674/674  2026-10-18; phase-aligned looping source offsets and 5 new test cases
+681/681  2026-10-18; elapsed slider-body playback and 7 new test cases
 ```
 
 The 2026-10-18 session review reported 674 passed, 0 failed, 0 skipped (`dotnet test` exit code 0); `git diff --check` was clean. The published product commit `f55565adb616032065d8d197b80cfa96050db9f7` contains the new `AddLoopingAudioSource(...)` offset parameter, phase-aligned frame positioning, 5 new test cases, and updates to `docs/ROADMAP.md` and `docs/architecture.md`. The previous 669/669 checkpoint from 2026-10-14 remains historical. Actual source and tests remain authoritative if later results differ.
+
+The later 2026-10-18 session review reported 681 passed, 0 failed, 0 skipped (`dotnet test` exit code 0); `git diff --check` was clean. Product commit `d9466dc1ba4eaf9d51940dcd543db16832137866`, verified on GitHub, extends `HitSoundPlaybackService.PlaySliderBody(...)` with elapsed-time validation, remaining-duration playback and phase preservation, adds 7 test cases, and updates `docs/ROADMAP.md` and `docs/architecture.md`.
 
 ## Workflow tooling
 
@@ -526,7 +530,7 @@ Do not mix these into the next audio step unless they become blockers:
 - evaluate runtime audio-device loss/recovery only when there is a concrete consumer; partial initialization cleanup is implemented but the forced-failure path remains untested
 - active-playback, clock-driven scheduling and seek/queue controller orchestration remain deferred; prequeueing assumes the mixer has not consumed the interval
 - `Stop()` only clears queued transient hitsounds through `Seek(0)` when timeline audio is loaded; hitsound-only stop behavior is not addressed yet
-- finite `SliderSlide` / `SliderWhistle` playback is implemented at the slider head, but the remaining body must be reconstructed when a seek/start occurs after that head and before the slider tail
+- `PlaySliderBody(...)` supports explicit elapsed-time reconstruction, but prequeueing does not yet discover sliders already active when an interval starts after their head and before their tail
 - do not introduce global optimization before deterministic export/reload equivalence exists
 
 ## Exact next workflow task
@@ -537,11 +541,11 @@ The workflow-documentation audit is complete and published. No workflow-audit ta
 
 Product documentation commit `35015f80049b4aca7334921b57e4d3f8b2abb5e7` records decision D027 in `docs/DECISIONS.md` and the architecture-review/refactoring milestone in `docs/ROADMAP.md`, scheduled **after Audio Infrastructure and before WPF editor implementation**. The intended direction is a modular monolith with clear domain, application-coordination, and infrastructure responsibilities, plus MVVM for WPF; adopt abstractions or multiple projects only when justified by verified consumers and costs. The architecture review and refactoring have **not** started.
 
-That historical commit changed documentation only. The subsequent 2026-10-18 product commit adds a tested audio feature. Current full-suite verification is **674/674 passing on 2026-10-18**.
+That historical commit changed documentation only. Subsequent 2026-10-18 product commits add verified audio features. Current full-suite verification is **681/681 passing on 2026-10-18**.
 
 ## Exact next product task
 
-On the next explicit session opening, inspect the current local body of `HitSoundPlaybackService.PlaySliderBody(...)`, then have the user extend it with optional elapsed-slider time to calculate remaining duration (`GetSliderDuration(slider) - elapsedMilliseconds`) and pass `sourceOffsetMilliseconds: elapsedMilliseconds` to the now-verified engine method. Preserve head-start behavior, sample resolution, existing reader ownership, and slider-edge/tick independence; verify duration, phase, and invalid/boundary inputs with hardware-independent tests before addressing detection of sliders active at an in-slider seek. The user authors all `src/` code.
+On the next explicit session opening, inspect the current local bodies of `Beatmap.GetTimedHitSoundEventsInRange(...)` and `HitSoundPlaybackService.QueueTimedHitSoundEventsInRange(...)`. Define the smallest correct detection and prequeueing of slider bodies already active at the interval start, using the verified `PlaySliderBody(..., elapsedMilliseconds: ...)`. Establish head/start/tail boundary behavior, avoid duplicate bodies and synthetic discrete events, and determine how continuous-body sample-resolution results are reported separately from discrete-event tuples. Verify with hardware-independent mixer-frame and fallback tests. The user authors all `src/` code.
 
 Do not begin an active-playback scheduler, UI work, global optimizer, or a speculative playback-controller abstraction in this step.
 

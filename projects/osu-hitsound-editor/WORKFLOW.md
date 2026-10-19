@@ -151,6 +151,10 @@ OUT OF SCOPE:
     nearby work that must not expand the task
 ```
 
+Also define a **sufficient progress point** for the session: a small, concrete, verifiable milestone within its objective that would make the session's progress meaningful even if the broader functionality remains unfinished. This is a scope guide, not a deadline, minimum productivity quota, or automatic stop.
+
+When the point is reached, acknowledge the verified progress and do not begin the next functionality by inertia. Continue only if the project owner chooses to extend the scope. Ending the session earlier is equally valid; record the work actually completed. A partial milestone does not waive the verification needed to claim production behavior is complete.
+
 Avoid combining a new feature, a large refactor and an architectural rewrite in one step unless truly required.
 
 ---
