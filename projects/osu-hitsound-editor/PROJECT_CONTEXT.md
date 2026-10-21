@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT
 
-Last updated: 2026-10-18
+Last updated: 2026-10-21
 
 ## Project
 
@@ -27,13 +27,13 @@ Branch:
     main
 
 Commit:
-    d9466dc1ba4eaf9d51940dcd543db16832137866
+    1c75405d3a131f367e4c9c8be692c6c012d1c7e7
 
 Verified remote state:
-    product commit pushed to origin/main (2026-10-18); confirmed on GitHub
+    product commit published and verified on main (2026-10-21)
 
 Local working tree:
-    verify with git status when resuming on a device
+    clean after publication; verify with git status when resuming on a device
 ```
 
 Both repositories are public.
@@ -45,14 +45,14 @@ Both repositories are public.
 Current test status:
 
 ```text
-681/681 passing; 0 failed, 0 skipped (full suite; 2026-10-18 23:07:44 session review)
+741/741 passing; 0 failed, 0 skipped (full suite; 2026-10-21 00:26:29 via New-SessionReview.ps1)
 ```
 
 Beatmap Parsing and Base Model, Hitsound Resolution, and the current Physical Sample Resolution boundary are complete.
 
 ## Current objective
 
-On the next explicitly opened development session, reconstruct continuous slider bodies already active at the start of a prequeue interval. Detect eligible sliders, call the verified `PlaySliderBody(...)` with elapsed time, avoid duplicating normal head-triggered playback, and keep continuous-body results separate from synthetic discrete events. The user writes production code.
+Begin the next session by defining and documenting a collaboration procedure with Codex to streamline session closure. Evaluate and agree on the provisional division of responsibilities before changing `WORKFLOW.md` or `AI_WORKFLOW.md`, and define session size by meaningful roadmap milestones rather than arbitrary duration. Only then resume production work progressively on `FrameScheduledSampleProvider`, starting with its structure, constructor, and `WaveFormat` property. The user writes production code.
 
 Manual testing in osu!stable during the 2026-10-17/18 session confirmed that an in-slider start plays only the remaining body and preserves the original loop phase; repeating the same test in lazer is not necessary for this checkpoint.
 
@@ -75,8 +75,10 @@ The current production audio boundary can:
 - dispatch unified events immediately via `PlayPendingTimedHitSoundEvents(...)`, or prequeue a bounded interval via `QueueTimedHitSoundEventsInRange(...)` before the mixer advances
 - calculate prequeue delays from `soundEvent.Time - startMilliseconds`, with `includeStart` supporting an event exactly at the seek boundary
 - prequeue `SliderSlide` and optional `SliderWhistle` through `PlaySliderBody(...)` when a slider-head event is included, using the same delay as the head and the slider's total duration; repeat/tail events do not restart the body
+- identify strictly active sliders with `Beatmap.GetActiveSlidersAt(...)` and reconstruct their continuous bodies with `HitSoundPlaybackService.QueueActiveSliderBodiesAt(...)`, preserving original phase and remaining duration through elapsed time
+- prepare discrete events and already-active continuous bodies together with `HitSoundPlaybackService.QueuePlaybackInterval(...)`, keeping their results separate and avoiding duplicate head-triggered bodies
 
-Prequeueing against a common interval origin is verified by mixer-frame tests and integration with timeline audio. Head-triggered slider-body playback is verified, but a prequeue interval beginning *inside* an already-running slider does not reconstruct that body. This is not an active-playback, audio-clock-driven scheduler; cursor-selected immediate dispatch remains distinct from future-event prequeueing.
+Prequeueing against a common interval origin is verified by mixer-frame tests and integration with timeline audio. Both head-triggered playback and reconstruction of bodies already active at the interval start are implemented and verified. This is not an active-playback, audio-clock-driven scheduler; cursor-selected immediate dispatch remains distinct from future-event prequeueing.
 
 ## Current implementation checkpoint
 
@@ -481,13 +483,23 @@ Unlike temporary sources managed by `activeReaders`, the timeline `WaveStream` r
 
 Prequeueing works with a common pre-playback origin, not with a clock-driven lookahead scheduler during playback. `HitSoundPlaybackService.PlaySliderBody(...)` resolves `SliderSlide` and optional `SliderWhistle` logical layers, validates optional `elapsedMilliseconds` within `[0, slider duration)`, and passes available local files to `AudioPlaybackEngine.AddLoopingAudioSource(...)` with `remainingDurationMilliseconds = beatmap.GetSliderDuration(slider) - elapsedMilliseconds` and `sourceOffsetMilliseconds: elapsedMilliseconds`. The default offset of zero preserves full-duration slider-head playback. Missing custom samples or external fallback requirements are returned without attempting playback.
 
-`QueueTimedHitSoundEventsInRange(...)` calls `PlaySliderBody(...)` only for an included slider-head (`SliderEdge` with `EdgeIndex = 0`) and passes the same relative delay as the head. The returned body resolution results are appended to that event's results. Repeats/tails do not restart the body. Starting or seeking *inside* a slider is still unhandled: the head is outside the selected interval, so this path does not queue its remaining continuous sound.
+`QueueTimedHitSoundEventsInRange(...)` calls `PlaySliderBody(...)` only for an included slider-head (`SliderEdge` with `EdgeIndex = 0`) and passes the same relative delay as the head. The returned body resolution results are appended to that event's results. Repeats/tails do not restart the body. This path alone does not discover bodies whose heads precede the interval; the completed interval preparation below handles them.
+
+`Beatmap.GetActiveSlidersAt(...)` identifies sliders strictly active at an instant, excluding their head and tail boundaries. `HitSoundPlaybackService.QueueActiveSliderBodiesAt(...)` reconstructs those continuous bodies using elapsed time to preserve their original phase and remaining duration. `HitSoundPlaybackService.QueuePlaybackInterval(...)` prepares both discrete events and already-active continuous bodies, keeps their results separate, and avoids duplicate bodies at slider heads. Active-slider reconstruction is complete, not a pending task.
+
+### Scheduler investigation and remaining boundary
+
+Two temporary diagnostic experiments passed: generated-frame accounting (7/7 checks), and scheduling at buffer boundaries with controlled concurrency (9/9 checks). All 16 diagnostic checks passed; the diagnostic files were removed before the checkpoint and are not part of the permanent suite.
+
+The experiments established that the WASAPI-reported position differs from the position through which the mixer has generated audio. A wrapper provider can count delivered frames, and segmented reads can start events at specific frames. Late events require explicit detection. The prototype does not yet demonstrate general concurrency safety.
+
+There is no production scheduler implementation. `FrameScheduledSampleProvider` remains pending. Reduced-speed playback and `SamplesMatchPlaybackRate` are future requirements, not implemented features.
 
 ### Verification boundary
 
 Automated tests remain hardware-independent.
 
-Permanent tests cover the uninitialized-output contracts, volume, delayed sample frames, ownership/cleanup of delayed mixer inputs, unified cursor behavior, event prequeueing (including `includeStart`), overlapping sounds, alignment with timeline audio, finite looping with duration/delay limits and reader cleanup, and slider-body integration (duration, whistle, delay, missing-sample outcomes, invalid inputs, head/body mixer-frame alignment, elapsed-time validation, preserved phase, and remaining-duration cutoff).
+Permanent tests cover the uninitialized-output contracts, volume, delayed sample frames, ownership/cleanup of delayed mixer inputs, unified cursor behavior, event prequeueing (including `includeStart`), overlapping sounds, alignment with timeline audio, finite looping with duration/delay limits and reader cleanup, and slider-body integration (duration, whistle, delay, missing-sample outcomes, invalid inputs, head/body mixer-frame alignment, elapsed-time validation, preserved phase, and remaining-duration cutoff). The latest 60 permanent cases cover active-slider detection, continuous-body reconstruction, and combined interval preparation with separate results and no duplicate head-triggered bodies.
 
 Focused WASAPI integration checks verified pause/resume with queued hitsounds, pause-seek-requeue-play, and stop/requeue from the beginning, in addition to earlier timeline/device checks. Temporary hardware-dependent tests were removed after verification. The internal `device.Init(...)` failure path was reviewed structurally, not forcibly triggered.
 
@@ -503,11 +515,14 @@ Meaningful full-suite checkpoints:
 669/669  2026-10-14; slider-body playback and integration into the timed-event prequeue path
 674/674  2026-10-18; phase-aligned looping source offsets and 5 new test cases
 681/681  2026-10-18; elapsed slider-body playback and 7 new test cases
+741/741  2026-10-21; active-slider reconstruction and interval preparation; 60 new test cases
 ```
 
 The 2026-10-18 session review reported 674 passed, 0 failed, 0 skipped (`dotnet test` exit code 0); `git diff --check` was clean. The published product commit `f55565adb616032065d8d197b80cfa96050db9f7` contains the new `AddLoopingAudioSource(...)` offset parameter, phase-aligned frame positioning, 5 new test cases, and updates to `docs/ROADMAP.md` and `docs/architecture.md`. The previous 669/669 checkpoint from 2026-10-14 remains historical. Actual source and tests remain authoritative if later results differ.
 
 The later 2026-10-18 session review reported 681 passed, 0 failed, 0 skipped (`dotnet test` exit code 0); `git diff --check` was clean. Product commit `d9466dc1ba4eaf9d51940dcd543db16832137866`, verified on GitHub, extends `HitSoundPlaybackService.PlaySliderBody(...)` with elapsed-time validation, remaining-duration playback and phase preservation, adds 7 test cases, and updates `docs/ROADMAP.md` and `docs/architecture.md`.
+
+The latest full verification, performed through `New-SessionReview.ps1` on 2026-10-21 at 00:26:29, reported 741 passed, 0 failed, 0 skipped. Published and verified product commit `1c75405d3a131f367e4c9c8be692c6c012d1c7e7` on `main` includes the three completed methods `Beatmap.GetActiveSlidersAt(...)`, `HitSoundPlaybackService.QueueActiveSliderBodiesAt(...)`, and `HitSoundPlaybackService.QueuePlaybackInterval(...)`. The suite grew from 681 to 741 permanent tests; the 16 temporary scheduler diagnostics are separate. The product working tree was clean after publication.
 
 ## Workflow tooling
 
@@ -530,24 +545,29 @@ Do not mix these into the next audio step unless they become blockers:
 - evaluate runtime audio-device loss/recovery only when there is a concrete consumer; partial initialization cleanup is implemented but the forced-failure path remains untested
 - active-playback, clock-driven scheduling and seek/queue controller orchestration remain deferred; prequeueing assumes the mixer has not consumed the interval
 - `Stop()` only clears queued transient hitsounds through `Seek(0)` when timeline audio is loaded; hitsound-only stop behavior is not addressed yet
-- `PlaySliderBody(...)` supports explicit elapsed-time reconstruction, but prequeueing does not yet discover sliders already active when an interval starts after their head and before their tail
+- `FrameScheduledSampleProvider` remains pending; diagnostic frame accounting and segmented reads do not constitute a production scheduler or establish general concurrency safety
+- reduced-speed playback and `SamplesMatchPlaybackRate` remain future requirements
 - do not introduce global optimization before deterministic export/reload equivalence exists
 
 ## Exact next workflow task
 
 The workflow-documentation audit is complete and published. No workflow-audit task is pending. Follow `WORKFLOW.md` for repository publication, cross-repository checkpoint updates, and optional mirror synchronization.
 
+The first task of the next session is to define and document a collaboration procedure with Codex to streamline closures, before resuming production code. In the completed experiment, Codex directly edited product `ROADMAP.md` and `architecture.md` using GPT-6.1 Sol with Medium reasoning. Reported time was approximately 3 minutes, with approximately 2% of the 5-hour limit consumed. ChatGPT subsequently reviewed the diff and its correspondence with the code; the user retained authorization of commits and publication.
+
+This division of responsibilities is provisional and must be evaluated and agreed before modifying `WORKFLOW.md` or `AI_WORKFLOW.md`. Also agree on session size based on meaningful roadmap milestones rather than arbitrary duration. The completed documentation audit does not resolve these new workflow questions.
+
 ## Planned architecture milestone (after Audio Infrastructure)
 
 Product documentation commit `35015f80049b4aca7334921b57e4d3f8b2abb5e7` records decision D027 in `docs/DECISIONS.md` and the architecture-review/refactoring milestone in `docs/ROADMAP.md`, scheduled **after Audio Infrastructure and before WPF editor implementation**. The intended direction is a modular monolith with clear domain, application-coordination, and infrastructure responsibilities, plus MVVM for WPF; adopt abstractions or multiple projects only when justified by verified consumers and costs. The architecture review and refactoring have **not** started.
 
-That historical commit changed documentation only. Subsequent 2026-10-18 product commits add verified audio features. Current full-suite verification is **681/681 passing on 2026-10-18**.
+That historical commit changed documentation only. Subsequent product commits add verified audio features. Current full-suite verification is **741/741 passing on 2026-10-21**.
 
 ## Exact next product task
 
-On the next explicit session opening, inspect the current local bodies of `Beatmap.GetTimedHitSoundEventsInRange(...)` and `HitSoundPlaybackService.QueueTimedHitSoundEventsInRange(...)`. Define the smallest correct detection and prequeueing of slider bodies already active at the interval start, using the verified `PlaySliderBody(..., elapsedMilliseconds: ...)`. Establish head/start/tail boundary behavior, avoid duplicate bodies and synthetic discrete events, and determine how continuous-body sample-resolution results are reported separately from discrete-event tuples. Verify with hardware-independent mixer-frame and fallback tests. The user authors all `src/` code.
+Only after the workflow task above has been evaluated and agreed, resume `FrameScheduledSampleProvider` progressively, beginning with its structure, constructor, and `WaveFormat` property. Use the temporary scheduler findings as evidence while keeping late-event detection and general concurrency safety unresolved until implemented and verified. The user authors all `src/` code.
 
-Do not begin an active-playback scheduler, UI work, global optimizer, or a speculative playback-controller abstraction in this step.
+Active-slider reconstruction is already complete. The scheduler itself remains unimplemented; reduced-speed playback and `SamplesMatchPlaybackRate` remain future requirements. Do not expand this initial step into UI work, a global optimizer, or a speculative playback-controller abstraction.
 
 ## Source-of-truth order
 
