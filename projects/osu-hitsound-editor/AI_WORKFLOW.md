@@ -85,7 +85,7 @@ Local read access does not authorize edits, tests, commits, uploads, or publicat
 
 ### Bounded Codex inspection of local source
 
-Codex CLI is an **optional local inspector**, not a required session-start step or the primary mentor. Use it only when an accurate answer depends on unpublished local code that is not sufficiently available in the chat. First decide whether the current method/diff provided by the user already answers the question; do not invoke an agent merely to repeat a completed review.
+Codex CLI's **optional local inspection role** is not a required session-start step or the primary mentor. Use this role only when an accurate answer depends on unpublished local code that is not sufficiently available in the chat. First decide whether the current method/diff provided by the user already answers the question; do not invoke an agent merely to repeat a completed review.
 
 When local inspection is justified, the assistant prepares **one bounded question** for the user to paste into Codex:
 
@@ -98,6 +98,14 @@ When local inspection is justified, the assistant prepares **one bounded questio
 For a small inspection, a locally available low-cost model at low reasoning effort is a starting preference, not a guarantee of capability or lower total consumption. Escalate model, scope or effort only when concrete deficiencies justify it. A context-window figure and rounded remaining quota are **not an exact per-task token or credit bill**.
 
 On the user's Windows setup, an optional personal PowerShell-profile function named `codex-inspect` launches Codex from the **current product directory** with model `gpt-6-luna`, low effort, `--sandbox read-only`, and `--ask-for-approval never`. This function is **local user configuration**, not a repository script or a portable guarantee. Verify model, working directory and `Read Only (never)` in `/status` whenever they matter; do not presume Codex is running, installed on another device, or accessible directly to this chat.
+
+### Bounded Codex documentation editing
+
+During session closing, Codex may directly edit explicitly authorized documents. Keep the existing `codex-inspect` configuration unchanged; use a separate documentation-editing profile, currently `docs-sol-medium` with GPT-6.1 Sol, Medium reasoning, `workspace-write`, and controlled approvals. Model and reasoning choices are configurable, not permanent project requirements. Personal profiles and configuration remain outside Git.
+
+The consolidated request must name the exact allowed files, agreed decisions, evidence, and verification limits. Make localized changes, preserve document structure, and avoid duplicated instructions. Codex may also correct obsolete information within those files when verifiable evidence supports the correction. Do not introduce new technical decisions, expand the task independently, edit outside the authorized files, or rewrite entire documents for style. If information is ambiguous or a necessary edit falls outside scope, preserve the existing content and report the issue.
+
+`workspace-write` does not technically enforce an individual-file allowlist. Check `git status` and the actual diff to verify scope. ChatGPT independently reviews the real diffs and their consistency with available evidence; accepting Codex's summary is insufficient. The user retains staging, commit, and publication authorization. Codex must not execute Git operations that modify a repository or its history without explicit authorization.
 
 ---
 
@@ -524,7 +532,7 @@ OUT OF SCOPE:
     nearby work that must not expand the current task
 ```
 
-Keep the Definition of Done small enough to finish and verify in the current session.
+Size sessions by verifiable roadmap objectives and milestones rather than arbitrary duration. Define a sufficient progress point as described in `WORKFLOW.md` (`Start of a session`): reaching it does not force closing, and does not authorize starting another functionality without the user's decision.
 
 ---
 
@@ -545,6 +553,8 @@ For each feature:
 10. Run the relevant verification.
 11. Continue only after the required verification passes.
 ```
+
+Concentrate all product and workflow documentation updates in the closing protocol, not after individual milestones. This covers technical documentation, architectural decisions, roadmap, AI instructions, and continuity files. Preserve decisions and results using available session evidence, code, tests, and review reports; conversation memory alone is insufficient to reconstruct technical facts. Code, tests, and configuration needed to develop functionality may still be created or modified during development.
 
 ---
 
@@ -575,6 +585,8 @@ Current important versions are recorded in `PROJECT_PROFILE.md`.
 ## Git
 
 Do not suggest commits after every small change.
+
+The user authorizes staging, commits, and publication. Codex must not execute Git operations that modify a repository or its history without explicit user authorization.
 
 Suggest/prepare a commit when:
 
@@ -695,7 +707,7 @@ When Markdown is intended for direct copy-paste into a project file:
 - prefer generating a `.md` file for large document replacements
 - do not escape Markdown syntax merely to make it display as plain text when the user intends to copy it
 
-For tracked text/documentation files:
+For direct Codex edits during closing, follow `Bounded Codex documentation editing`. When delivering tracked text/documentation changes for the user to apply:
 
 ```text
 existing file + partial changes
@@ -794,7 +806,7 @@ Changing ChatGPT conversations is **not** ending a development session. A contex
 
 ### Handoff: prompt only (old chat)
 
-1. Produce one copy-ready recovery prompt; **do not edit** `PROJECT_CONTEXT.md`, any repository file, or a separate handoff document. Do not run scripts, tests, builds, Git writes, or mirror synchronization as part of handoff. Meaningful project checkpoints are maintained through the ordinary development/closing process, independently of switching chats.
+1. Produce one copy-ready recovery prompt; **do not edit** `PROJECT_CONTEXT.md`, any repository file, or a separate handoff document. Do not run scripts, tests, builds, Git writes, or mirror synchronization as part of handoff. Meaningful documented checkpoints are updated during session closing, independently of switching chats.
 2. Include direct URLs to the product and workflow repositories and to the authoritative `PROJECT_PROFILE.md`, `PROJECT_CONTEXT.md`, and `AI_WORKFLOW.md` documents. Instruct the new chat to read the current files in the required order and consult `WORKFLOW.md` and product documents when relevant.
 3. Include a **provisional chronology** of relevant activities, not just the task in `PROJECT_CONTEXT.md`: mark completed, paused, and active work; preserve known decisions, verified results and test checkpoints, unresolved failures, the last confirmed step, session mode if known, and the proposed next action. Avoid dumping the transcript or exposing private data.
 4. Explicitly warn that the chronology can be **incomplete, stale, or wrong**, especially after context loss. Label uncertainty rather than invent missing tasks or asserting that nothing else happened. Do not treat the generated prompt as an authoritative checkpoint.
@@ -818,7 +830,7 @@ Development sessions have two explicit modes: **open** and **closed**. Changing 
 
 - An explicit start/resume message (for example, `sesión abierta` or `iniciemos una nueva sesión`) opens the session and activates the Session starting protocol. Record the user's supplied start date and time for conversational tracking; do not invent missing timestamps.
 - An explicit closing message (for example, `sesión cerrada`, stopping, or pausing) closes the session after following the Session closing protocol.
-- While **open**, follow the established development workflow, including user-authored production code and appropriate tests, documentation, and Git changes.
+- While **open**, implement, review, and verify functionality under the established workflow, with user-authored production code. Update documentation only during closing; Git writes require explicit user authorization.
 - While **closed**, answer questions and discuss ideas only. Do not provide implementation code, code snippets, tests, shell commands, or patches; do not initiate development tasks, edit files, run tests, or create commits.
 - Ideas and potential decisions discussed while **closed** are provisional. On the next opening, do not implement them automatically; confirm which ones, if any, should be taken forward.
 - Remain in **closed** mode until the user explicitly starts or resumes a development session.
@@ -844,23 +856,16 @@ When the user explicitly starts or resumes a development session:
 When the user says they are stopping, pausing, going to sleep, or ending the session:
 
 1. State the current product stage and exact verified test/verification checkpoint.
-2. For meaningful product changes, run/request `New-SessionReview.ps1` from the workflow repository; for documentation-only changes, review the affected diff and `git diff --check` instead.
-3. Review the session-review report only when one was required; do not generate another report to confirm an unchanged result.
-4. Summarize only functionality completed in this session.
-5. Identify which product documentation changed responsibility-wise.
-6. Identify which workflow documentation changed responsibility-wise.
-7. Record unresolved questions or technical debt without starting new work.
-8. Give exactly one concrete next task for the active session. During workflow-only work, retain the deferred product task in `PROJECT_CONTEXT.md` without starting it.
-9. If product changes exist:
-   - verify product
-   - commit product
-   - push product
-   - obtain exact pushed product commit SHA
-10. Update workflow `PROJECT_CONTEXT.md` only if meaningful resumable checkpoint information changed. When the product commit changed, record its exact pushed SHA; for workflow-only changes, keep the existing product SHA.
-11. Review workflow changes once, using the smallest relevant diff.
-12. Commit/push workflow repository if changes exist.
-13. If mirrored authoritative files changed, synchronize the optional mirror once after pushing. Do not synchronize it solely to repeat a successful check.
-14. Do not start a new feature during closing.
+2. For product changes, perform the corresponding verification and review the required report once. For workflow-documentation-only closing, review the actual diff and run `git diff --check`; do not repeat product tests or generate unnecessary full reports.
+3. Summarize only work completed in this session using available evidence, including code, tests, and review reports. Keep historical results distinct from new verification. Identify unresolved questions and exactly one concrete next task without starting new work.
+4. Identify only the documents that need updates. For product changes, send Codex one consolidated request for the necessary product documents under `Bounded Codex documentation editing`.
+5. ChatGPT reviews all actual product changes (code, tests, and documentation) against the session-review report and available evidence, independently of Codex's summary, before the user authorizes commit and push.
+6. The user authorizes product commit and push. Publish only with that authorization and obtain the actual published SHA.
+7. Codex updates necessary workflow documents and `PROJECT_CONTEXT.md` when meaningful resumable information changed, recording the actual published product SHA. For workflow-only closing, skip product publication and retain the existing product SHA and deferred product task.
+8. ChatGPT independently reviews the actual workflow diff against the evidence and verifies the authorized file scope with `git status` and the diff.
+9. The user authorizes workflow commit and push. Publish only with that authorization.
+10. If mirrored authoritative files changed, synchronize the optional mirror once after the publications. Do not synchronize it solely to repeat a successful check.
+11. Do not start a new feature during closing. Follow `WORKFLOW.md` (`Commit order`) for the consolidated publication sequence.
 
 
 ## Current checkpoint

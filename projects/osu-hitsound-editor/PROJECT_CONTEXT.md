@@ -52,7 +52,9 @@ Beatmap Parsing and Base Model, Hitsound Resolution, and the current Physical Sa
 
 ## Current objective
 
-Begin the next session by defining and documenting a collaboration procedure with Codex to streamline session closure. Evaluate and agree on the provisional division of responsibilities before changing `WORKFLOW.md` or `AI_WORKFLOW.md`, and define session size by meaningful roadmap milestones rather than arbitrary duration. Only then resume production work progressively on `FrameScheduledSampleProvider`, starting with its structure, constructor, and `WaveFormat` property. The user writes production code.
+The workflow-only session objective is complete: the documentation collaboration procedure with Codex has been agreed. `WORKFLOW.md` and `AI_WORKFLOW.md` define closing-only documentation updates, bounded direct editing, independent ChatGPT diff review, user-authorized publication, and sessions organized around verifiable roadmap milestones. This session introduced no production changes or new product test results; the product checkpoint and historical 741/741 passing result (0 failed, 0 skipped) remain unchanged.
+
+Next, resume production work progressively on `FrameScheduledSampleProvider`, starting with its structure, constructor, and `WaveFormat` property, then review concurrency and frame-scheduling needs. The user writes production code.
 
 Manual testing in osu!stable during the 2026-10-17/18 session confirmed that an in-slider start plays only the remaining body and preserves the original loop phase; repeating the same test in lazer is not necessary for this checkpoint.
 
@@ -553,9 +555,9 @@ Do not mix these into the next audio step unless they become blockers:
 
 The workflow-documentation audit is complete and published. No workflow-audit task is pending. Follow `WORKFLOW.md` for repository publication, cross-repository checkpoint updates, and optional mirror synchronization.
 
-The first task of the next session is to define and document a collaboration procedure with Codex to streamline closures, before resuming production code. In the completed experiment, Codex directly edited product `ROADMAP.md` and `architecture.md` using GPT-6.1 Sol with Medium reasoning. Reported time was approximately 3 minutes, with approximately 2% of the 5-hour limit consumed. ChatGPT subsequently reviewed the diff and its correspondence with the code; the user retained authorization of commits and publication.
+The Codex documentation collaboration procedure is agreed and documented; its definition is no longer pending. No further workflow task is required before resuming the next product step. Personal Codex profiles remain outside Git; the operational rules live in `WORKFLOW.md` and `AI_WORKFLOW.md`.
 
-This division of responsibilities is provisional and must be evaluated and agreed before modifying `WORKFLOW.md` or `AI_WORKFLOW.md`. Also agree on session size based on meaningful roadmap milestones rather than arbitrary duration. The completed documentation audit does not resolve these new workflow questions.
+In the earlier completed experiment, Codex directly edited product `ROADMAP.md` and `architecture.md` using GPT-6.1 Sol with Medium reasoning. ChatGPT subsequently reviewed the diff against the code; the user retained authorization of commits and publication. That experiment is historical evidence, not new product work in this workflow-only session.
 
 ## Planned architecture milestone (after Audio Infrastructure)
 
@@ -565,7 +567,7 @@ That historical commit changed documentation only. Subsequent product commits ad
 
 ## Exact next product task
 
-Only after the workflow task above has been evaluated and agreed, resume `FrameScheduledSampleProvider` progressively, beginning with its structure, constructor, and `WaveFormat` property. Use the temporary scheduler findings as evidence while keeping late-event detection and general concurrency safety unresolved until implemented and verified. The user authors all `src/` code.
+Resume `FrameScheduledSampleProvider` progressively, beginning with its structure, constructor, and `WaveFormat` property, then review concurrency and frame-scheduling needs. Use the temporary scheduler findings as evidence while keeping late-event detection and general concurrency safety unresolved until implemented and verified. The user authors all `src/` code.
 
 Active-slider reconstruction is already complete. The scheduler itself remains unimplemented; reduced-speed playback and `SamplesMatchPlaybackRate` remain future requirements. Do not expand this initial step into UI work, a global optimizer, or a speculative playback-controller abstraction.
 

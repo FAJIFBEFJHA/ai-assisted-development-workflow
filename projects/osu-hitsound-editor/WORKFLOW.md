@@ -135,7 +135,7 @@ Pop-Location
 
 Skip product tests for workflow-only documentation work or an unchanged chat handoff with valid prior verification. Do not start new product functionality if a needed baseline fails unexpectedly; investigate the failure first.
 
-Choose one session objective, whether product development or workflow maintenance, and define:
+Organize sessions around verifiable roadmap objectives and milestones, not an arbitrary duration. Choose one session objective, whether product development or workflow maintenance, and define:
 
 ```text
 OBJECTIVE:
@@ -323,6 +323,10 @@ Automate only when that experience demonstrates a concrete benefit, unless autom
 
 Documentation now belongs to two different repositories.
 
+Update product and workflow documentation only during session closing, not after each individual development milestone. This includes technical documentation, architectural decisions, roadmap, AI instructions, and continuity files. During development, implement, review, and verify functionality; this rule does not restrict code, tests, or configuration needed for that work.
+
+Preserve decisions and results for closing through available session evidence, actual code, tests, and review reports. Do not reconstruct technical facts from conversation memory alone. Update only the documents that actually need changes.
+
 ### Product documentation
 
 Update in `osu-hitsound-editor`:
@@ -348,7 +352,9 @@ projects/osu-hitsound-editor/AI_WORKFLOW.md
 
 Do not copy a document into both repositories merely for convenience.
 
-For partial changes to an existing tracked text/documentation file, prefer a Git patch over replacing the entire file.
+During closing, Codex may directly edit explicitly authorized documents using a consolidated request. Follow `AI_WORKFLOW.md` (`Bounded Codex documentation editing`) for scope, profiles, evidence, and independent review.
+
+When delivering partial changes for the user to apply to an existing tracked text/documentation file, prefer a Git patch over replacing the entire file.
 
 ```text
 existing tracked file + partial changes
@@ -397,6 +403,8 @@ meaningful product documentation change
 
 meaningful workflow documentation change
     -> inspect the workflow-repository diff
+    -> git diff --check
+    -> no product tests or full session report for workflow-documentation-only work
 
 workflow script behavior changed
     -> verify the script against the intended repository
@@ -597,7 +605,7 @@ An unchanged chat-only handoff requires no tests, session review, commits, or mi
 
 ## Before ending a session
 
-Do not use a large interactive terminal `git diff` as the normal closing-review workflow.
+Avoid large interactive terminal diffs as the normal closing-review workflow; use the session-review report for product verification and context when required. ChatGPT must also inspect the actual documentation diffs against available evidence; a Codex summary alone is insufficient.
 
 For meaningful product changes, run:
 
@@ -679,33 +687,33 @@ WORKFLOW.md / AI_WORKFLOW.md
 
 `PROJECT_CONTEXT.md` is a checkpoint, not a diary.
 
-Keep it current and focused on information needed to resume development. Update it only when meaningful checkpoint information changes; do not rewrite an unchanged product SHA or checkpoint during workflow-only edits.
+Keep it focused on information needed to resume development, without personal schedules, rituals, or preferences unrelated to development. Update it during closing only when meaningful checkpoint information changes; do not rewrite an unchanged product SHA or checkpoint during workflow-only edits.
 
 ### Commit order
 
 If the product repository changed:
 
 ```text
-1. verify product behavior
-2. update required product documentation
-3. review product changes
-4. commit product repository
-5. push product repository
-6. obtain the pushed product commit SHA
-7. update workflow PROJECT_CONTEXT.md with that exact Product checkpoint
+1. run the required verification and review its report once
+2. Codex updates necessary product documents through one consolidated request
+3. ChatGPT reviews all actual product changes (code, tests, and documentation) against the session-review report and available evidence before the user authorizes commit and push
+4. user authorizes product commit and push; publish only with that authorization
+5. obtain the actual published product SHA; Codex updates the workflow checkpoint with it
 ```
 
 Then:
 
 ```text
-8. review workflow-repository changes
-9. commit workflow repository
-10. push workflow repository
+6. ChatGPT reviews the actual workflow diff against the evidence
+7. user authorizes workflow commit and push; publish only with that authorization
+8. synchronize the optional mirror once after the publications
 ```
 
-If only workflow files changed, the recorded product checkpoint remains unchanged.
+Codex must not execute Git operations that modify a repository or its history, including staging, without explicit user authorization.
 
-After both authoritative repositories are pushed, synchronize the optional continuity mirror:
+For workflow-documentation-only closing, keep the product checkpoint unchanged, review the actual workflow diff and run `git diff --check`; do not repeat product tests or generate a full session report. Product verification/publication steps do not apply. Workflow commit and push still require user authorization.
+
+After the affected authoritative repositories are published, synchronize the optional continuity mirror once:
 
 ```powershell
 & "$workflowRepo\projects\osu-hitsound-editor\scripts\Sync-ProjectContext.ps1" `
