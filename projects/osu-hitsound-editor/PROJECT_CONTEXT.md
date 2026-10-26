@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT
 
-Last updated: 2026-10-21
+Last updated: 2026-10-26
 
 ## Project
 
@@ -27,10 +27,10 @@ Branch:
     main
 
 Commit:
-    1c75405d3a131f367e4c9c8be692c6c012d1c7e7
+    a75298fffcd6675c1035fa25de672f96c4be59ba
 
 Verified remote state:
-    product commit published and verified on main (2026-10-21)
+    product commit published and verified on GitHub main (2026-10-26)
 
 Local working tree:
     clean after publication; verify with git status when resuming on a device
@@ -45,16 +45,16 @@ Both repositories are public.
 Current test status:
 
 ```text
-741/741 passing; 0 failed, 0 skipped (full suite; 2026-10-21 00:26:29 via New-SessionReview.ps1)
+741/741 passing; 0 failed, 0 skipped (full suite; 2026-10-26 00:54:02 closing review; dotnet test exit code 0; git diff --check clean)
 ```
 
 Beatmap Parsing and Base Model, Hitsound Resolution, and the current Physical Sample Resolution boundary are complete.
 
 ## Current objective
 
-The workflow-only session objective is complete: the documentation collaboration procedure with Codex has been agreed. `WORKFLOW.md` and `AI_WORKFLOW.md` define closing-only documentation updates, bounded direct editing, independent ChatGPT diff review, user-authorized publication, and sessions organized around verifiable roadmap milestones. This session introduced no production changes or new product test results; the product checkpoint and historical 741/741 passing result (0 failed, 0 skipped) remain unchanged.
+The 2026-10-25 20:59:13 to 2026-10-26 00:07:32 (America/Lima) session concluded with conceptual editor UI/UX decisions D028–D031 in product `docs/DECISIONS.md` and a preliminary hitsound-optimization study in product `docs/research/hitsound-optimization-research-2026-10-26.md`. Product `docs/ROADMAP.md` records the remaining design studies and stages. The later documentation review and publication were part of closing, not resumed development.
 
-Next, resume production work progressively on `FrameScheduledSampleProvider`, starting with its structure, constructor, and `WaveFormat` property, then review concurrency and frame-scheduling needs. The user writes production code.
+The published product commit changes only those three documentation files. No production code or permanent tests changed. The research was reviewed but approves no optimizer algorithm or implementation; unresolved UI behavior and osu!stable compatibility questions remain deferred. Audio Infrastructure remains in progress; the D027 architecture review remains after it and before WPF. Desktop Editor, Export and Round-Trip Verification, and Sample Optimization have not started.
 
 Manual testing in osu!stable during the 2026-10-17/18 session confirmed that an in-slider start plays only the remaining body and preserves the original loop phase; repeating the same test in lazer is not necessary for this checkpoint.
 
@@ -518,13 +518,16 @@ Meaningful full-suite checkpoints:
 674/674  2026-10-18; phase-aligned looping source offsets and 5 new test cases
 681/681  2026-10-18; elapsed slider-body playback and 7 new test cases
 741/741  2026-10-21; active-slider reconstruction and interval preparation; 60 new test cases
+741/741  2026-10-26; closing review of documentation-only changes; no new permanent tests
 ```
 
 The 2026-10-18 session review reported 674 passed, 0 failed, 0 skipped (`dotnet test` exit code 0); `git diff --check` was clean. The published product commit `f55565adb616032065d8d197b80cfa96050db9f7` contains the new `AddLoopingAudioSource(...)` offset parameter, phase-aligned frame positioning, 5 new test cases, and updates to `docs/ROADMAP.md` and `docs/architecture.md`. The previous 669/669 checkpoint from 2026-10-14 remains historical. Actual source and tests remain authoritative if later results differ.
 
 The later 2026-10-18 session review reported 681 passed, 0 failed, 0 skipped (`dotnet test` exit code 0); `git diff --check` was clean. Product commit `d9466dc1ba4eaf9d51940dcd543db16832137866`, verified on GitHub, extends `HitSoundPlaybackService.PlaySliderBody(...)` with elapsed-time validation, remaining-duration playback and phase preservation, adds 7 test cases, and updates `docs/ROADMAP.md` and `docs/architecture.md`.
 
-The latest full verification, performed through `New-SessionReview.ps1` on 2026-10-21 at 00:26:29, reported 741 passed, 0 failed, 0 skipped. Published and verified product commit `1c75405d3a131f367e4c9c8be692c6c012d1c7e7` on `main` includes the three completed methods `Beatmap.GetActiveSlidersAt(...)`, `HitSoundPlaybackService.QueueActiveSliderBodiesAt(...)`, and `HitSoundPlaybackService.QueuePlaybackInterval(...)`. The suite grew from 681 to 741 permanent tests; the 16 temporary scheduler diagnostics are separate. The product working tree was clean after publication.
+The 2026-10-21 full verification through `New-SessionReview.ps1` reported 741 passed, 0 failed, 0 skipped. Published product commit `1c75405d3a131f367e4c9c8be692c6c012d1c7e7` included `Beatmap.GetActiveSlidersAt(...)`, `HitSoundPlaybackService.QueueActiveSliderBodiesAt(...)`, and `HitSoundPlaybackService.QueuePlaybackInterval(...)`; the suite grew from 681 to 741 permanent tests. The 16 temporary scheduler diagnostics are separate.
+
+The latest full verification was the 2026-10-26 00:54:02 closing review: 741 passed, 0 failed, 0 skipped; `dotnet test` exited 0 and `git diff --check` was clean. Published product commit `a75298fffcd6675c1035fa25de672f96c4be59ba`, verified on GitHub `main`, contains only `docs/DECISIONS.md`, `docs/ROADMAP.md`, and `docs/research/hitsound-optimization-research-2026-10-26.md`. This review established a new verification date without new production behavior or permanent tests.
 
 ## Workflow tooling
 
@@ -555,15 +558,13 @@ Do not mix these into the next audio step unless they become blockers:
 
 The workflow-documentation audit is complete and published. No workflow-audit task is pending. Follow `WORKFLOW.md` for repository publication, cross-repository checkpoint updates, and optional mirror synchronization.
 
-The Codex documentation collaboration procedure is agreed and documented; its definition is no longer pending. No further workflow task is required before resuming the next product step. Personal Codex profiles remain outside Git; the operational rules live in `WORKFLOW.md` and `AI_WORKFLOW.md`.
-
-In the earlier completed experiment, Codex directly edited product `ROADMAP.md` and `architecture.md` using GPT-6.1 Sol with Medium reasoning. ChatGPT subsequently reviewed the diff against the code; the user retained authorization of commits and publication. That experiment is historical evidence, not new product work in this workflow-only session.
+No workflow task is required before resuming the next product step. The documentation collaboration procedure remains in `WORKFLOW.md` and `AI_WORKFLOW.md`; personal Codex profiles remain outside Git.
 
 ## Planned architecture milestone (after Audio Infrastructure)
 
 Product documentation commit `35015f80049b4aca7334921b57e4d3f8b2abb5e7` records decision D027 in `docs/DECISIONS.md` and the architecture-review/refactoring milestone in `docs/ROADMAP.md`, scheduled **after Audio Infrastructure and before WPF editor implementation**. The intended direction is a modular monolith with clear domain, application-coordination, and infrastructure responsibilities, plus MVVM for WPF; adopt abstractions or multiple projects only when justified by verified consumers and costs. The architecture review and refactoring have **not** started.
 
-That historical commit changed documentation only. Subsequent product commits add verified audio features. Current full-suite verification is **741/741 passing on 2026-10-21**.
+That historical commit changed documentation only. Subsequent product commits added verified audio features, and the 2026-10-26 product commit changed documentation only. Current full-suite verification is **741/741 passing on 2026-10-26**.
 
 ## Exact next product task
 
