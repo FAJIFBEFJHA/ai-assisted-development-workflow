@@ -17,41 +17,47 @@ The product repository contains the software, tests, CI, architecture, decisions
 
 The workflow repository contains the maintainer-specific learning rules, AI instructions, continuity checkpoint, session process, and workflow tooling.
 
-Read `PROJECT_PROFILE.md` before applying this file.
+At an explicit session opening or resumption, start with the bounded entry sections in `Required reading order`. For any activity, consult the full relevant instruction section before acting, or reuse its current content already available in this context; a heading or remembered rule is not its content.
 
 ---
 
 
 ## Required reading order
 
-At the beginning of a new or resumed development session, read the current authoritative files in this order:
+Use three progressive levels. Both a missing/uncertain fact **and** the start of an activity listed below trigger consultation. Do not rely on noticing a memory gap: satisfy the mapped instructions even when they seem familiar. Sections already read from current sources and still available in the present context may be reused; a chat summary or a heading alone does not count as their content. A chat handoff does not by itself open or close a session; use the recovery rules below.
 
-```text
-1. workflow repository:
-       projects/osu-hitsound-editor/PROJECT_PROFILE.md
+### Level 1: mandatory entry at explicit opening or resumption
 
-2. workflow repository:
-       projects/osu-hitsound-editor/PROJECT_CONTEXT.md
+Consult these sections in order, reusing eligible content as described above, without loading the full files:
 
-3. workflow repository:
-       projects/osu-hitsound-editor/AI_WORKFLOW.md
-       (this file; apply the assistant rules relevant to the task)
+1. `PROJECT_PROFILE.md`: `Identity`, `Collaboration mode` (including `Production-code rule`), and `Source-of-truth order`. These establish repositories, roles, the production-code boundary, and authority.
+2. `PROJECT_CONTEXT.md`: `Project` (including `Product checkpoint`), `Current stage`, `Current objective`, the implementation checkpoint section pertinent to the current objective and task, `Verification boundary`, `Exact next workflow task`, and `Exact next product task`. These identify the verified checkpoint, latest functionality, limits, and deferred work. Read another checkpoint section if the objective needs its detail.
+3. This file: `Required reading order`, `Primary learning rule`, `Session modes`, and `Session starting protocol`. The section names here and in the map below are the consultation index; consult the mapped content before the activity.
 
-4. product repository (for product development; for workflow-only work, only when relevant):
-       relevant part of docs/ROADMAP.md
+For an unchanged conversation handoff, also read `Chat handoff and recovery protocol` and `WORKFLOW.md` (`Switching chats without ending the session`). For a device change, also read `WORKFLOW.md` (`Working across multiple devices`) before synchronization. Do not treat the product task in the checkpoint as the active task without reconciling current evidence.
 
-5. product repository:
-       docs/DECISIONS.md
-       when architecture, design, or established behavior is involved
+### Level 2: mandatory reading by activity
 
-6. product repository:
-       docs/architecture.md
-       when component boundaries or data flow are involved
-```
+Before beginning each activity, satisfy the listed consultations even if the rules seem familiar. Reuse a section already consulted only while its source is current and its content remains available in this context. Combine rows when activities overlap; read only relevant product document sections and current code/tests.
 
-Before performing Git, test, documentation, device-switch or session-closing operations, consult the corresponding sections of `WORKFLOW.md`. This is selective procedural reading; do not load the entire operational document for every task.
+| Activity trigger | Required consultation |
+| --- | --- |
+| Orient a new production method | `PROJECT_PROFILE.md` (`New production methods`); this file (`Primary learning rule`, `New methods`, `Resource ownership`); `WORKFLOW.md` (`Before implementing a new method`). Include the resource and concurrency contract when applicable. |
+| Review or change an existing method | Current local method body and relevant callers/tests; this file (`Current local source access`, `Modifying existing methods`, `Resource ownership` when applicable); `WORKFLOW.md` (`Modifying existing methods`). |
+| Design audio, scheduling, threading, or resource lifetime | This file (`Resource ownership`, `Design and refactoring`, `Pre-implementation design gate`); product `docs/DECISIONS.md` (applicable decisions, especially D023–D026), `docs/architecture.md` (affected boundary), and current code/tests. Establish concurrency, ownership, cleanup, and failure behavior before proposing a contract. |
+| Plan or assess tests | `PROJECT_PROFILE.md` (`Verification policy`); this file (`Tests and verification`, `Proportional verification`); `WORKFLOW.md` (`Tests`, `Verification proportional to risk`); affected tests. |
+| Specify errors or rely on external behavior | This file (`Error handling`, `External behavior and dependencies` as applicable); `PROJECT_PROFILE.md` (`Error handling`, `External-source policy`); installed dependency version or official source when behavior is uncertain. |
+| Refactor or change architecture | This file (`Design and refactoring`, `Pre-implementation design gate`, `Code organization`); `WORKFLOW.md` (`Refactoring rule`); applicable product `docs/DECISIONS.md`, `docs/architecture.md`, `docs/ROADMAP.md`, and affected code/tests. |
+| Recommend or perform Git status, synchronization, staging, commit, pull, or push | This file (`Git`, `Product checkpoint validation`); `WORKFLOW.md` (`Start of a session`, `Working across multiple devices`, `Commit order` as applicable); inspect the relevant repository state first. Git writes require the user's authorization. |
+| Edit or review documentation | `PROJECT_PROFILE.md` (`Documentation policy`); this file (`Markdown output and documentation edits`, `Bounded Codex documentation editing` when applicable); `WORKFLOW.md` (`Documentation updates and patches`, applicable update section); actual files and diff. |
+| Switch conversations or recover context | This file (`Chat handoff and recovery protocol`, `Session modes`); `WORKFLOW.md` (`Switching chats without ending the session`); distinguish verified evidence from provisional chronology. |
+| Close a session | This file (`Session closing protocol`); `WORKFLOW.md` (`Before ending a session`, `Commit order`); current checkpoint and actual verification evidence. |
 
-Use live authoritative repository files rather than stale cached Project/Drive copies when freshness matters. Do not rely on chat memory over newer verified evidence. When switching devices or expecting remote changes, verify the local working state before any `git pull` as required by `WORKFLOW.md` (`Start of a session`).
+For product development, consult the relevant part of product `docs/ROADMAP.md`. Consult applicable `docs/DECISIONS.md` whenever a prior product decision may govern the task, and `docs/architecture.md` for component boundaries or data flow. These are activity requirements, not optional memory checks. `WORKFLOW.md` remains the authority for operational steps; no full-document opening read is required.
+
+### Level 3: reading on demand
+
+When a needed fact is absent, incomplete, uncertain, disputed, or possibly stale, or a source changed or context was lost: identify it, locate its authoritative source using `Source-of-truth hierarchy`, consult the relevant section or current code/tests again, reconcile discrepancies, and proceed only with sufficient evidence. These conditions also invalidate reuse under Levels 1 and 2. Do not reconstruct earlier decisions or implementations from memory. Use live repository files rather than stale cached Project/Drive copies when freshness matters. Before any pull, inspect local state as required by `WORKFLOW.md` (`Start of a session`).
 
 ---
 

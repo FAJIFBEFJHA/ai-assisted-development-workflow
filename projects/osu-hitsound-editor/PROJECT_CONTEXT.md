@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 ## Project
 
@@ -27,13 +27,13 @@ Branch:
     main
 
 Commit:
-    a75298fffcd6675c1035fa25de672f96c4be59ba
+    cda450baa52f3eb8495e4468db84219c7833787d
 
 Verified remote state:
-    product commit published and verified on GitHub main (2026-10-26)
+    product commit published on main (2026-10-27); local HEAD matches this SHA
 
 Local working tree:
-    clean after publication; verify with git status when resuming on a device
+    clean and synchronized with origin/main after publication, per closing handoff; verify on resumption
 ```
 
 Both repositories are public.
@@ -45,16 +45,16 @@ Both repositories are public.
 Current test status:
 
 ```text
-741/741 passing; 0 failed, 0 skipped (full suite; 2026-10-26 00:54:02 closing review; dotnet test exit code 0; git diff --check clean)
+764/764 passing; 0 failed, 0 skipped (full suite; 2026-10-27 00:46:34 session review, as reported in closing handoff)
 ```
 
 Beatmap Parsing and Base Model, Hitsound Resolution, and the current Physical Sample Resolution boundary are complete.
 
 ## Current objective
 
-The 2026-10-25 20:59:13 to 2026-10-26 00:07:32 (America/Lima) session concluded with conceptual editor UI/UX decisions D028–D031 in product `docs/DECISIONS.md` and a preliminary hitsound-optimization study in product `docs/research/hitsound-optimization-research-2026-10-26.md`. Product `docs/ROADMAP.md` records the remaining design studies and stages. The later documentation review and publication were part of closing, not resumed development.
+The latest published product checkpoint adds the standalone `FrameScheduledSampleProvider` and 23 permanent tests. It is partial Audio Infrastructure, not an integrated active-playback scheduler. Product `docs/ROADMAP.md` and `docs/architecture.md` were updated and published with it. The workflow protocol defines selective, progressive reading; this checkpoint includes no new production work.
 
-The published product commit changes only those three documentation files. No production code or permanent tests changed. The research was reviewed but approves no optimizer algorithm or implementation; unresolved UI behavior and osu!stable compatibility questions remain deferred. Audio Infrastructure remains in progress; the D027 architecture review remains after it and before WPF. Desktop Editor, Export and Round-Trip Verification, and Sample Optimization have not started.
+The earlier 2026-10-26 UI/UX decisions D028–D031 and preliminary hitsound-optimization study remain historical context, not the current implementation task. The research approves no optimizer algorithm. Audio Infrastructure remains in progress; the D027 architecture review remains after it and before WPF. Desktop Editor, Export and Round-Trip Verification, and Sample Optimization have not started.
 
 Manual testing in osu!stable during the 2026-10-17/18 session confirmed that an in-slider start plays only the remaining body and preserves the original loop phase; repeating the same test in lazer is not necessary for this checkpoint.
 
@@ -80,7 +80,7 @@ The current production audio boundary can:
 - identify strictly active sliders with `Beatmap.GetActiveSlidersAt(...)` and reconstruct their continuous bodies with `HitSoundPlaybackService.QueueActiveSliderBodiesAt(...)`, preserving original phase and remaining duration through elapsed time
 - prepare discrete events and already-active continuous bodies together with `HitSoundPlaybackService.QueuePlaybackInterval(...)`, keeping their results separate and avoiding duplicate head-triggered bodies
 
-Prequeueing against a common interval origin is verified by mixer-frame tests and integration with timeline audio. Both head-triggered playback and reconstruction of bodies already active at the interval start are implemented and verified. This is not an active-playback, audio-clock-driven scheduler; cursor-selected immediate dispatch remains distinct from future-event prequeueing.
+Prequeueing against a common interval origin is verified by mixer-frame tests and integration with timeline audio. Both head-triggered playback and reconstruction of bodies already active at the interval start are implemented and verified. Separately, `FrameScheduledSampleProvider` activates queued sources by absolute frame through segmented reads. Neither path is an integrated active-playback, audio-clock-driven scheduler; cursor-selected immediate dispatch remains distinct from future-event prequeueing.
 
 ## Current implementation checkpoint
 
@@ -489,19 +489,21 @@ Prequeueing works with a common pre-playback origin, not with a clock-driven loo
 
 `Beatmap.GetActiveSlidersAt(...)` identifies sliders strictly active at an instant, excluding their head and tail boundaries. `HitSoundPlaybackService.QueueActiveSliderBodiesAt(...)` reconstructs those continuous bodies using elapsed time to preserve their original phase and remaining duration. `HitSoundPlaybackService.QueuePlaybackInterval(...)` prepares both discrete events and already-active continuous bodies, keeps their results separate, and avoids duplicate bodies at slider heads. Active-slider reconstruction is complete, not a pending task.
 
-### Scheduler investigation and remaining boundary
+### Frame scheduling checkpoint and remaining boundary
 
 Two temporary diagnostic experiments passed: generated-frame accounting (7/7 checks), and scheduling at buffer boundaries with controlled concurrency (9/9 checks). All 16 diagnostic checks passed; the diagnostic files were removed before the checkpoint and are not part of the permanent suite.
 
 The experiments established that the WASAPI-reported position differs from the position through which the mixer has generated audio. A wrapper provider can count delivered frames, and segmented reads can start events at specific frames. Late events require explicit detection. The prototype does not yet demonstrate general concurrency safety.
 
-There is no production scheduler implementation. `FrameScheduledSampleProvider` remains pending. Reduced-speed playback and `SamplesMatchPlaybackRate` are future requirements, not implemented features.
+The production `FrameScheduledSampleProvider` now wraps a `MixingSampleProvider`, exposes its `WaveFormat`, and counts complete frames returned by `Read(...)` in `FramesRead`. `Schedule(source, framePosition)` requires a non-null source with the mixer format and a non-negative frame that has not already been consumed. A priority queue orders events by absolute frame and insertion order. `Read(...)` requires complete-frame buffers, splits mixer reads at event boundaries, activates due sources, and advances `FramesRead` by complete returned frames. The 23 permanent tests cover this standalone behavior.
+
+It is not connected to `AudioPlaybackEngine` or WASAPI. Concurrent `Schedule(...)` and `Read(...)` calls have no established correctness guarantee; the current lock does not establish a complete cross-call concurrency contract. Scheduled-source ownership and cleanup, partial-failure recovery, and seek/pause/stop coordination remain unresolved. Reduced-speed playback and `SamplesMatchPlaybackRate` are future requirements, not implemented features. This provider is partial infrastructure, not a completed scheduler.
 
 ### Verification boundary
 
 Automated tests remain hardware-independent.
 
-Permanent tests cover the uninitialized-output contracts, volume, delayed sample frames, ownership/cleanup of delayed mixer inputs, unified cursor behavior, event prequeueing (including `includeStart`), overlapping sounds, alignment with timeline audio, finite looping with duration/delay limits and reader cleanup, and slider-body integration (duration, whistle, delay, missing-sample outcomes, invalid inputs, head/body mixer-frame alignment, elapsed-time validation, preserved phase, and remaining-duration cutoff). The latest 60 permanent cases cover active-slider detection, continuous-body reconstruction, and combined interval preparation with separate results and no duplicate head-triggered bodies.
+Permanent tests cover the uninitialized-output contracts, volume, delayed sample frames, ownership/cleanup of delayed mixer inputs, unified cursor behavior, event prequeueing (including `includeStart`), overlapping sounds, alignment with timeline audio, finite looping with duration/delay limits and reader cleanup, and slider-body integration (duration, whistle, delay, missing-sample outcomes, invalid inputs, head/body mixer-frame alignment, elapsed-time validation, preserved phase, and remaining-duration cutoff). The earlier 60 permanent cases cover active-slider detection, continuous-body reconstruction, and combined interval preparation with separate results and no duplicate head-triggered bodies. The latest 23 cover standalone frame-scheduled reads; they do not establish active-playback integration or concurrent correctness.
 
 Focused WASAPI integration checks verified pause/resume with queued hitsounds, pause-seek-requeue-play, and stop/requeue from the beginning, in addition to earlier timeline/device checks. Temporary hardware-dependent tests were removed after verification. The internal `device.Init(...)` failure path was reviewed structurally, not forcibly triggered.
 
@@ -519,6 +521,7 @@ Meaningful full-suite checkpoints:
 681/681  2026-10-18; elapsed slider-body playback and 7 new test cases
 741/741  2026-10-21; active-slider reconstruction and interval preparation; 60 new test cases
 741/741  2026-10-26; closing review of documentation-only changes; no new permanent tests
+764/764  2026-10-27; standalone FrameScheduledSampleProvider; 23 new permanent test cases
 ```
 
 The 2026-10-18 session review reported 674 passed, 0 failed, 0 skipped (`dotnet test` exit code 0); `git diff --check` was clean. The published product commit `f55565adb616032065d8d197b80cfa96050db9f7` contains the new `AddLoopingAudioSource(...)` offset parameter, phase-aligned frame positioning, 5 new test cases, and updates to `docs/ROADMAP.md` and `docs/architecture.md`. The previous 669/669 checkpoint from 2026-10-14 remains historical. Actual source and tests remain authoritative if later results differ.
@@ -527,7 +530,9 @@ The later 2026-10-18 session review reported 681 passed, 0 failed, 0 skipped (`d
 
 The 2026-10-21 full verification through `New-SessionReview.ps1` reported 741 passed, 0 failed, 0 skipped. Published product commit `1c75405d3a131f367e4c9c8be692c6c012d1c7e7` included `Beatmap.GetActiveSlidersAt(...)`, `HitSoundPlaybackService.QueueActiveSliderBodiesAt(...)`, and `HitSoundPlaybackService.QueuePlaybackInterval(...)`; the suite grew from 681 to 741 permanent tests. The 16 temporary scheduler diagnostics are separate.
 
-The latest full verification was the 2026-10-26 00:54:02 closing review: 741 passed, 0 failed, 0 skipped; `dotnet test` exited 0 and `git diff --check` was clean. Published product commit `a75298fffcd6675c1035fa25de672f96c4be59ba`, verified on GitHub `main`, contains only `docs/DECISIONS.md`, `docs/ROADMAP.md`, and `docs/research/hitsound-optimization-research-2026-10-26.md`. This review established a new verification date without new production behavior or permanent tests.
+The 2026-10-26 00:54:02 closing review is historical: 741 passed, 0 failed, 0 skipped. Product commit `a75298fffcd6675c1035fa25de672f96c4be59ba` changed only documentation.
+
+The latest full verification, reported in `osu-hitsound-editor-session-review_2026-10-27_00-46-34.txt`, is 764 passed, 0 failed, 0 skipped. Published product commit `cda450baa52f3eb8495e4468db84219c7833787d` includes `FrameScheduledSampleProvider`, 23 permanent tests, and updated `docs/ROADMAP.md` and `docs/architecture.md`. The local product `HEAD` matches this SHA. The report's result was supplied in the closing handoff; it was not rerun for this workflow-only edit.
 
 ## Workflow tooling
 
@@ -550,27 +555,25 @@ Do not mix these into the next audio step unless they become blockers:
 - evaluate runtime audio-device loss/recovery only when there is a concrete consumer; partial initialization cleanup is implemented but the forced-failure path remains untested
 - active-playback, clock-driven scheduling and seek/queue controller orchestration remain deferred; prequeueing assumes the mixer has not consumed the interval
 - `Stop()` only clears queued transient hitsounds through `Seek(0)` when timeline audio is loaded; hitsound-only stop behavior is not addressed yet
-- `FrameScheduledSampleProvider` remains pending; diagnostic frame accounting and segmented reads do not constitute a production scheduler or establish general concurrency safety
+- integration of the existing `FrameScheduledSampleProvider` with `AudioPlaybackEngine`/WASAPI, and its concurrency, ownership, cleanup, and partial-failure contracts remain pending
 - reduced-speed playback and `SamplesMatchPlaybackRate` remain future requirements
 - do not introduce global optimization before deterministic export/reload equivalence exists
 
 ## Exact next workflow task
 
-The workflow-documentation audit is complete and published. No workflow-audit task is pending. Follow `WORKFLOW.md` for repository publication, cross-repository checkpoint updates, and optional mirror synchronization.
-
-No workflow task is required before resuming the next product step. The documentation collaboration procedure remains in `WORKFLOW.md` and `AI_WORKFLOW.md`; personal Codex profiles remain outside Git.
+The workflow checkpoint records the selective, progressive reading protocol and the published product SHA above. `AI_WORKFLOW.md` owns its entry sections and activity triggers; `WORKFLOW.md` retains operational procedures. No further workflow-maintenance task is required before the next product step.
 
 ## Planned architecture milestone (after Audio Infrastructure)
 
 Product documentation commit `35015f80049b4aca7334921b57e4d3f8b2abb5e7` records decision D027 in `docs/DECISIONS.md` and the architecture-review/refactoring milestone in `docs/ROADMAP.md`, scheduled **after Audio Infrastructure and before WPF editor implementation**. The intended direction is a modular monolith with clear domain, application-coordination, and infrastructure responsibilities, plus MVVM for WPF; adopt abstractions or multiple projects only when justified by verified consumers and costs. The architecture review and refactoring have **not** started.
 
-That historical commit changed documentation only. Subsequent product commits added verified audio features, and the 2026-10-26 product commit changed documentation only. Current full-suite verification is **741/741 passing on 2026-10-26**.
+That historical commit changed documentation only. Subsequent product commits added verified audio features. The current reported full-suite checkpoint is **764/764 passing on 2026-10-27**.
 
 ## Exact next product task
 
-Resume `FrameScheduledSampleProvider` progressively, beginning with its structure, constructor, and `WaveFormat` property, then review concurrency and frame-scheduling needs. Use the temporary scheduler findings as evidence while keeping late-event detection and general concurrency safety unresolved until implemented and verified. The user authors all `src/` code.
+After closing, define and verify the concurrency contract between `FrameScheduledSampleProvider.Schedule(...)` and `Read(...)`, including late-event handling and the ownership, cleanup, and partial-failure behavior of scheduled sources. This is the next bounded product task in the pending Audio Infrastructure work of product `docs/ROADMAP.md`. The user authors all `src/` code.
 
-Active-slider reconstruction is already complete. The scheduler itself remains unimplemented; reduced-speed playback and `SamplesMatchPlaybackRate` remain future requirements. Do not expand this initial step into UI work, a global optimizer, or a speculative playback-controller abstraction.
+Active-slider reconstruction and the standalone provider are already implemented. Integration with `AudioPlaybackEngine`/WASAPI and verification during active playback follow the provider contracts. The integrated scheduler, playback-controller coordination, reduced-speed playback, and `SamplesMatchPlaybackRate` remain future work. Do not expand the next step into UI work or a global optimizer.
 
 ## Source-of-truth order
 

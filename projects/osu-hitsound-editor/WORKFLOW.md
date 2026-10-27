@@ -83,7 +83,7 @@ Do not duplicate product `ROADMAP.md`, `DECISIONS.md`, or `architecture.md` into
 
 ## Start of a session
 
-Read the current project instructions and checkpoint using the single authoritative reading order in `AI_WORKFLOW.md` (`Required reading order`). Consult the relevant portion of `docs/ROADMAP.md` and the conditional product documents for the session's actual task. `WORKFLOW.md` supplies operational steps; it need not be read in full at every opening.
+Follow `AI_WORKFLOW.md` (`Required reading order`): read its Level 1 entry sections at an explicit opening or resumption, then the Level 2 sections triggered by the actual activity; use Level 3 when evidence is missing, uncertain, or stale. Consult the relevant portion of product `docs/ROADMAP.md` for product development and applicable decisions, architecture, code, and tests as mapped there. This file supplies operational steps; read the relevant sections before those operations, not the entire file at every opening.
 
 Identify the two local clones without hard-coding their paths in tracked files.
 
