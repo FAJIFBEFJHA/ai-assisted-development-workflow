@@ -135,11 +135,11 @@ Pop-Location
 
 Skip product tests for workflow-only documentation work or an unchanged chat handoff with valid prior verification. Do not start new product functionality if a needed baseline fails unexpectedly; investigate the failure first.
 
-Organize sessions around verifiable roadmap objectives and milestones, not an arbitrary duration. Choose one session objective, whether product development or workflow maintenance, and define:
+Organize sessions around verifiable objectives and milestones, not an arbitrary duration. For product development, the objective is a functionality or verifiable milestone from the product `docs/ROADMAP.md`, never the implementation or modification of an individual method. Methods, tests, decisions, and refactors are tasks within that objective. One functionality may take several sessions, and one session may cover several methods serving the same objective. For workflow maintenance, choose a concrete process goal. Define:
 
 ```text
 OBJECTIVE:
-    one concrete goal
+    one concrete roadmap functionality or milestone (or workflow-maintenance goal)
 
 DONE WHEN:
     observable completion conditions
@@ -151,7 +151,7 @@ OUT OF SCOPE:
     nearby work that must not expand the task
 ```
 
-Also define a **sufficient progress point** for the session: a small, concrete, verifiable milestone within its objective that would make the session's progress meaningful even if the broader functionality remains unfinished. This is a scope guide, not a deadline, minimum productivity quota, or automatic stop.
+Also define a **sufficient progress point** for the session: a small, concrete, verifiable milestone within its objective that would make the session's progress meaningful even if the broader functionality remains unfinished. This is a scope guide, not a deadline, productivity quota, or automatic stop.
 
 When the point is reached, acknowledge the verified progress and do not begin the next functionality by inertia. Continue only if the project owner chooses to extend the scope. Ending the session earlier is equally valid; record the work actually completed. A partial milestone does not waive the verification needed to claim production behavior is complete.
 
@@ -691,22 +691,33 @@ Keep it focused on information needed to resume development, without personal sc
 
 ### Commit order
 
+For either repository, prefer JetBrains Rider after verification and independent diff review:
+
+1. Open `Commit` with `Ctrl+K`.
+2. Review the diff and select only authorized files.
+3. Write a descriptive commit title in English. An optional body may follow after one blank line with relevant technical details and the author's own observations.
+4. Execute `Commit` only with the user's authorization.
+5. Open `Push` separately with `Ctrl+Shift+K`; check the destination and included commits before executing it with the user's authorization. Never Force Push `main`.
+6. Obtain and verify the published SHA before updating any dependent checkpoint.
+
+Git by terminal remains an alternative. Keep the same review, authorization, publication order, and SHA checks; use the status/diff diagnostics, `git diff --check`, and existing scripts described above.
+
 If the product repository changed:
 
 ```text
 1. run the required verification and review its report once
 2. Codex updates necessary product documents through one consolidated request
 3. ChatGPT reviews all actual product changes (code, tests, and documentation) against the session-review report and available evidence before the user authorizes commit and push
-4. user authorizes product commit and push; publish only with that authorization
-5. obtain the actual published product SHA; Codex updates the workflow checkpoint with it
+4. user authorizes the product commit and separate push; publish only with that authorization
+5. obtain and verify the actual published product SHA; Codex updates the workflow checkpoint with it
 ```
 
 Then:
 
 ```text
 6. ChatGPT reviews the actual workflow diff against the evidence
-7. user authorizes workflow commit and push; publish only with that authorization
-8. synchronize the optional mirror once after the publications
+7. user authorizes the workflow commit and separate push; publish only with that authorization; obtain and verify its published SHA
+8. synchronize the optional mirror once after both publications
 ```
 
 Codex must not execute Git operations that modify a repository or its history, including staging, without explicit user authorization.

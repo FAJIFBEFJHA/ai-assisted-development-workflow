@@ -520,13 +520,13 @@ Do not hide these answers inside vague pseudocode.
 
 ## Session objective and Definition of Done
 
-Before starting production code in a session, state one small functional objective and a short Definition of Done.
+Before starting production code in a session, state a functional objective and a short Definition of Done. The objective is a functionality or verifiable milestone in the product `docs/ROADMAP.md`, not the implementation or modification of an individual method. Methods, tests, decisions, and refactors are tasks within that objective. A functionality may span several sessions; a session may cover several methods serving the same objective.
 
 Use:
 
 ```text
 OBJECTIVE:
-    one concrete functional goal
+    one concrete roadmap functionality or milestone
 
 DONE WHEN:
     observable completion conditions
@@ -538,7 +538,7 @@ OUT OF SCOPE:
     nearby work that must not expand the current task
 ```
 
-Size sessions by verifiable roadmap objectives and milestones rather than arbitrary duration. Define a sufficient progress point as described in `WORKFLOW.md` (`Start of a session`): reaching it does not force closing, and does not authorize starting another functionality without the user's decision.
+Size sessions by verifiable roadmap progress rather than arbitrary duration or a productivity quota. Define a sufficient progress point as described in `WORKFLOW.md` (`Start of a session`): reaching it does not force closing, and does not authorize starting another functionality without the user's decision.
 
 ---
 
@@ -592,7 +592,7 @@ Current important versions are recorded in `PROJECT_PROFILE.md`.
 
 Do not suggest commits after every small change.
 
-The user authorizes staging, commits, and publication. Codex must not execute Git operations that modify a repository or its history without explicit user authorization.
+The user authorizes staging, commits, and publication. Codex must not execute Git operations that modify a repository or its history without explicit user authorization. For verified and reviewed changes, follow `WORKFLOW.md` (`Commit order`) for the preferred Rider Commit/Push procedure, the terminal alternative, separate publication of product and workflow, and published-SHA checks.
 
 Suggest/prepare a commit when:
 
@@ -866,10 +866,10 @@ When the user says they are stopping, pausing, going to sleep, or ending the ses
 3. Summarize only work completed in this session using available evidence, including code, tests, and review reports. Keep historical results distinct from new verification. Identify unresolved questions and exactly one concrete next task without starting new work.
 4. Identify only the documents that need updates. For product changes, send Codex one consolidated request for the necessary product documents under `Bounded Codex documentation editing`.
 5. ChatGPT reviews all actual product changes (code, tests, and documentation) against the session-review report and available evidence, independently of Codex's summary, before the user authorizes commit and push.
-6. The user authorizes product commit and push. Publish only with that authorization and obtain the actual published SHA.
+6. The user authorizes product commit and separate push. Publish only with that authorization and obtain the verified published SHA, following `WORKFLOW.md` (`Commit order`).
 7. Codex updates necessary workflow documents and `PROJECT_CONTEXT.md` when meaningful resumable information changed, recording the actual published product SHA. For workflow-only closing, skip product publication and retain the existing product SHA and deferred product task.
 8. ChatGPT independently reviews the actual workflow diff against the evidence and verifies the authorized file scope with `git status` and the diff.
-9. The user authorizes workflow commit and push. Publish only with that authorization.
+9. The user authorizes workflow commit and separate push. Publish only with that authorization and verify the published SHA.
 10. If mirrored authoritative files changed, synchronize the optional mirror once after the publications. Do not synchronize it solely to repeat a successful check.
 11. Do not start a new feature during closing. Follow `WORKFLOW.md` (`Commit order`) for the consolidated publication sequence.
 
