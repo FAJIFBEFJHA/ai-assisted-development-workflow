@@ -695,10 +695,14 @@ For either repository, prefer JetBrains Rider after verification and independent
 
 1. Open `Commit` with `Ctrl+K`.
 2. Review the diff and select only authorized files.
-3. Write a descriptive commit title in English. An optional body may follow after one blank line with relevant technical details and the author's own observations.
+3. Write a Conventional Commit subject as `type(scope): description`, using a meaningful scope and a concise English imperative description without a final period. An optional body may follow after one blank line with relevant technical details and the author's own observations.
 4. Execute `Commit` only with the user's authorization.
 5. Open `Push` separately with `Ctrl+Shift+K`; check the destination and included commits before executing it with the user's authorization. Never Force Push `main`.
 6. Obtain and verify the published SHA before updating any dependent checkpoint.
+
+Accepted types are `feat` (new functionality), `fix` (bug correction), `docs` (documentation), `test` (tests), `refactor` (code restructuring without new functionality or bug fixes), and `chore` (maintenance/tooling outside product behavior, documentation, and tests). Product `CONTRIBUTING.md` is the product-facing convention; consult its commit-message guide for examples rather than duplicating it here. Apply the convention to new commits without rewriting historical commits.
+
+Rider's `Amend` changes commit identity. Do not use it to rewrite commits already published on `main`; make a new commit for subsequent corrections. This does not waive the authorization requirements above or the prohibition against force-pushing `main`.
 
 Git by terminal remains an alternative. Keep the same review, authorization, publication order, and SHA checks; use the status/diff diagnostics, `git diff --check`, and existing scripts described above.
 
